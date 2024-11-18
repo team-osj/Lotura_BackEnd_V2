@@ -1,6 +1,7 @@
 import {
   WebSocketGateway,
   WebSocketServer,
+  SubscribeMessage,
   OnGatewayConnection,
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
@@ -82,5 +83,10 @@ export class DeviceWebsocketGateway
         break;
       }
     }
+  }
+
+  @SubscribeMessage('message')
+  async handleMessage(client: ExtendedWebSocket, payload: string) {
+    console.log(`[Device][Message] ${payload}`);
   }
 }
