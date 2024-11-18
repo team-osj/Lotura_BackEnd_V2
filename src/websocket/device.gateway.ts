@@ -27,6 +27,25 @@ export class DeviceWebsocketGateway
   server: Server;
 
   private connectedDevices: Map<string, ConnectedDevice> = new Map();
+  private heartbeatInterval: NodeJS.Timer;
+
+  constructor() {
+    this.setupHeartbeat();
+  }
+
+  private setupHeartbeat() {
+    this.heartbeatInterval = setInterval(() => {
+      this.connectedDevices.forEach((device, hwid) => {
+        if (!device.ws.isAlive) {
+          device.ws.terminate();
+          this.connectedDevices.delete(hwid);
+          return;
+        }
+        device.ws.isAlive = false;
+        device.ws.ping();
+      });
+    }, 15000);
+  }
 
   async handleConnection(client: ExtendedWebSocket, request: any) {
     const hwid = request.headers['hwid'];
