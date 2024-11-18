@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { WebsocketModule } from './websocket/websocket.module';
 import configuration from './config/configuration';
 
 @Module({
@@ -24,6 +25,7 @@ import configuration from './config/configuration';
       }),
       inject: [ConfigService],
     }),
+    WebsocketModule,
   ],
 })
 export class AppModule {}
