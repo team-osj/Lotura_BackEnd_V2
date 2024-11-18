@@ -89,4 +89,11 @@ export class DeviceWebsocketGateway
   async handleMessage(client: ExtendedWebSocket, payload: string) {
     console.log(`[Device][Message] ${payload}`);
   }
+
+  sendToDevice(hwid: string, data: any) {
+    const device = this.connectedDevices.get(hwid);
+    if (device && device.ws.readyState === device.ws.OPEN) {
+      device.ws.send(JSON.stringify(data));
+    }
+  }
 }
