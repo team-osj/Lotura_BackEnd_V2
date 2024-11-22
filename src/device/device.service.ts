@@ -51,4 +51,14 @@ export class DeviceService {
       }
     }
   }
+
+  async getDeviceList(): Promise<Device[]> {
+    // id, state, device_type중 선타ㅐㄱ해서 반환
+    return this.deviceRepository.find({
+      select: ['id', 'state', 'device_type'],
+      order: {
+        id: 'ASC',
+      },
+    });
+  }
 }
