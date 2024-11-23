@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Device } from '../entities/device.entity';
 import * as moment from 'moment';
+import { LaundryRoomType } from 'src/common/enums/laundry-room.enum';
 
 @Injectable()
 export class DeviceService {
@@ -54,6 +55,45 @@ export class DeviceService {
 
   async getDeviceList(): Promise<Device[]> {
     // id, state, device_type중 선타ㅐㄱ해서 반환
+    return this.deviceRepository.find({
+      select: ['id', 'state', 'device_type'],
+      order: {
+        id: 'ASC',
+      },
+    });
+  }
+
+  async getMensFirstDevices() {
+    return this.deviceRepository.find({
+      where: { room_type: LaundryRoomType.MENS_FIRST },
+      select: ['id', 'view_id', 'state', 'device_type'],
+      order: {
+        id: 'ASC',
+      },
+    });
+  }
+
+  async getMensSecondDevices() {
+    return this.deviceRepository.find({
+      where: { room_type: LaundryRoomType.MENS_SECOND },
+      select: ['id', 'view_id', 'state', 'device_type'],
+      order: {
+        id: 'ASC',
+      },
+    });
+  }
+
+  async getWomensDevices() {
+    return this.deviceRepository.find({
+      where: { room_type: LaundryRoomType.WOMENS },
+      select: ['id', 'view_id', 'state', 'device_type'],
+      order: {
+        id: 'ASC',
+      },
+    });
+  }
+
+  async getAllDevices() {
     return this.deviceRepository.find({
       select: ['id', 'state', 'device_type'],
       order: {
