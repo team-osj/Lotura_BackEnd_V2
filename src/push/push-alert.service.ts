@@ -63,4 +63,13 @@ export class PushAlertService {
       select: ['device_id', 'device_type', 'state'],
     });
   }
+
+  async cancelPushAlert(token: string, device_id: number) {
+    await this.pushAlertRepository.delete({
+      Token: token,
+      device_id: device_id,
+    });
+
+    return this.getPushList(token);
+  }
 }

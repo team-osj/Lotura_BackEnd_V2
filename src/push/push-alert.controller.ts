@@ -30,4 +30,9 @@ export class PushAlertController {
   async getPushList(@Body() { token }: PushTokenDto) {
     return this.pushAlertService.getPushList(token);
   }
+
+  @Post('push_cancel')
+  async cancelPush(@Body() { token, device_id }: PushRequestDto) {
+    return this.pushAlertService.cancelPushAlert(token, device_id);
+  }
 }
