@@ -1,10 +1,14 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, ParseIntPipe, Post, Query } from '@nestjs/common';
 import { DeviceService } from './device.service';
 import { UpdateStatusDto } from './dto/update-status.dto';
+import { DeviceLogService } from './device-log.service';
 
 @Controller()
 export class DeviceController {
-  constructor(private readonly deviceService: DeviceService) {}
+  constructor(
+    private readonly deviceLogService: DeviceLogService,
+    private readonly deviceService: DeviceService,
+  ) {}
 
   @Get('device_list')
   async getDeviceList() {
@@ -34,5 +38,15 @@ export class DeviceController {
       updateStatusDto.type,
     );
     return { success: true };
+  }
+
+  @Get('get_log')
+  async getLog(@Query('no', ParseIntPipe) no: number) {
+    return this.deviceLogService.getLog(no);
+  }
+
+  @Get('log_list')
+  async getLogList() {
+    return this.deviceLogService.getLogList();
   }
 }
