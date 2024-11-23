@@ -55,4 +55,12 @@ export class PushAlertService {
     await this.pushAlertRepository.save(pushAlert);
     return { message: '알림 신청 성공.' };
   }
+
+  async getPushList(token: string) {
+    return this.pushAlertRepository.find({
+      where: { Token: token },
+      order: { device_id: 'ASC' },
+      select: ['device_id', 'device_type', 'state'],
+    });
+  }
 }

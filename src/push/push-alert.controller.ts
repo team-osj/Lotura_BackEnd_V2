@@ -7,6 +7,10 @@ class PushRequestDto {
   expect_state: number;
 }
 
+class PushTokenDto {
+  token: string;
+}
+
 @Controller()
 export class PushAlertController {
   constructor(private readonly pushAlertService: PushAlertService) {}
@@ -20,5 +24,10 @@ export class PushAlertController {
       device_id,
       expect_state,
     );
+  }
+
+  @Post('push_list')
+  async getPushList(@Body() { token }: PushTokenDto) {
+    return this.pushAlertService.getPushList(token);
   }
 }
