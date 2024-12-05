@@ -8,7 +8,6 @@ export class DiscordService implements OnModuleInit {
   private channel: TextChannel;
 
   constructor(private configService: ConfigService) {
-    // Discord 클라이언트 초기화
     this.client = new Client({
       intents: [
         IntentsBitField.Flags.Guilds,
@@ -19,35 +18,24 @@ export class DiscordService implements OnModuleInit {
     });
   }
 
-  /**
-   * 모듈 초기화 시 Discord 봇 연결
-   */
   async onModuleInit() {
-    // Discord 이벤트 핸들러 등록
     this.client.on('ready', () => {
       console.log(`${this.client.user.tag} is online.`);
       this.channel = this.client.channels.cache.get(
-        this.configService.get('discord.channelId'),
+        process.env.DISCORD_CHANNEL_ID,
       ) as TextChannel;
       this.channel.send('Bot is online');
     });
 
-    // 디스코드 봇 로그인
-    await this.client.login(this.configService.get('discord.token'));
+    await this.client.login(process.env.DISCORD_TOKEN);
   }
 
-  /**
-   * 일반 메시지를 전송합니다.
-   */
   async sendMessage(message: string) {
     if (this.channel) {
       await this.channel.send(message);
     }
   }
 
-  /**
-   * 디바이스 상태 보고를 전송합니다.
-   */
   async sendDeviceReport(deviceData: any) {
     if (!this.channel) return;
 
@@ -78,9 +66,6 @@ export class DiscordService implements OnModuleInit {
     await this.channel.send({ embeds: [embed] });
   }
 
-  /**
-   * 채널 정보를 포맷팅합니다.
-   */
   private formatChannelInfo(data: any, channel: string): string {
     return `장치번호 : ${data[`ch${channel}_deviceno`]}
 모드 : ${data[`ch${channel}_mode`]}
@@ -99,9 +84,6 @@ export class DiscordService implements OnModuleInit {
 전류 : ${data[`CH${channel}_Curr_D`]}A`;
   }
 
-  /**
-   * 네트워크 정보를 포맷팅합니다.
-   */
   private formatNetworkInfo(data: any): string {
     return `SSID : ${data.wifi_ssid}
 Local IP : ${data.wifi_ip}
