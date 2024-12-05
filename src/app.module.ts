@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { WebsocketModule } from './websocket/websocket.module';
 import configuration from './config/configuration';
+import { NoticeModule } from './notice/notice.module';
 
 @Module({
   imports: [
@@ -20,12 +21,13 @@ import configuration from './config/configuration';
         password: configService.get('database.password'),
         database: configService.get('database.database'),
         entities: ['dist/**/*.entity{.ts,.js}'],
-        synchronize: false,
+        synchronize: true,
         timezone: '+09:00',
       }),
       inject: [ConfigService],
     }),
     WebsocketModule,
+    NoticeModule,
   ],
 })
 export class AppModule {}
