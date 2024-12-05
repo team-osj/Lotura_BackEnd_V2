@@ -120,17 +120,20 @@ export class PushAlertService {
           },
         };
 
-        return admin.messaging().send(message);
+        return admin
+          .messaging()
+          .send(message)
+          .then((result) => {
+            console.log('FCM 전송 결과:', result);
+            return result;
+          });
       });
 
-      await Promise.all(sendPromises);
-      return { success: true, sentCount: uniqueTokens.length };
+      const results = await Promise.all(sendPromises);
+      return { success: true, results, sentCount: uniqueTokens.length };
     } catch (error) {
-      console.error('FCM 전송 에러:', error);
-      throw new HttpException(
-        'FCM 메시지 전송 실패',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      console.error('FCM 전송 실패:', error);
+      throw error;
     }
   }
 }

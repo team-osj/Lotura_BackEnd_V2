@@ -26,9 +26,12 @@ export class NoticeService {
       contents,
       date: new Date(),
     });
-
-    await this.pushAlertService.sendFcmToAll(title, contents);
-
+    console.log('공지사항 생성:', notice);
+    const pushResult = await this.pushAlertService.sendFcmToAll(
+      title,
+      contents,
+    );
+    console.log('FCM 전송 시도:', pushResult);
     return notice;
   }
 }
