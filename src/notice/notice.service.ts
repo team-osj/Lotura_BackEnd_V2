@@ -2,12 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notice } from '../entities/notice.entity';
+import { PushAlertService } from 'src/push/push-alert.service';
 
 @Injectable()
 export class NoticeService {
   constructor(
     @InjectRepository(Notice)
     private noticeRepository: Repository<Notice>,
+    private pushAlertService: PushAlertService,
   ) {}
 
   async getNotices() {
@@ -19,12 +21,14 @@ export class NoticeService {
   }
 
   async createNotice(title: string, contents: string) {
-    const notice = this.noticeRepository.create({
+    const notice = await this.noticeRepository.save({
       title,
       contents,
       date: new Date(),
     });
 
-    return this.noticeRepository.save(notice);
+    await this.pushAlertService.sendFcmToAll(title, contents);
+
+    return notice;
   }
 }

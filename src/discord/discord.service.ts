@@ -27,7 +27,7 @@ export class DiscordService implements OnModuleInit {
     this.client.on('ready', () => {
       console.log(`${this.client.user.tag} is online.`);
       this.channel = this.client.channels.cache.get(
-        this.configService.get('discord.channelId')
+        this.configService.get('discord.channelId'),
       ) as TextChannel;
       this.channel.send('Bot is online');
     });
@@ -52,7 +52,7 @@ export class DiscordService implements OnModuleInit {
     if (!this.channel) return;
 
     const embed = new EmbedBuilder()
-      .setColor(0x0099FF)
+      .setColor(0x0099ff)
       .setTitle(`고유번호 ${deviceData.hwid}번 기기 보고`)
       .setDescription(`FW_VER : ${deviceData.fw_ver}`)
       .addFields(
@@ -71,7 +71,7 @@ export class DiscordService implements OnModuleInit {
           name: '네트워크',
           value: this.formatNetworkInfo(deviceData),
           inline: true,
-        }
+        },
       )
       .setTimestamp();
 

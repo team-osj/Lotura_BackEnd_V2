@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PushAlert } from '../entities/push-alert.entity';
 import { Device } from '../entities/device.entity';
+import * as admin from 'firebase-admin';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class PushAlertService {
@@ -11,7 +13,20 @@ export class PushAlertService {
     private pushAlertRepository: Repository<PushAlert>,
     @InjectRepository(Device)
     private deviceRepository: Repository<Device>,
-  ) {}
+    private configService: ConfigService,
+  ) {
+    if (!admin.apps.length) {
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId: configService.get('FIREBASE_PROJECT_ID'),
+          clientEmail: configService.get('FIREBASE_CLIENT_EMAIL'),
+          privateKey: configService
+            .get('FIREBASE_PRIVATE_KEY')
+            .replace(/\\n/g, '\n'),
+        }),
+      });
+    }
+  }
 
   async requestPushAlert(
     token: string,
@@ -69,7 +84,53 @@ export class PushAlertService {
       Token: token,
       device_id: device_id,
     });
-
     return this.getPushList(token);
+  }
+
+  async sendFcmToAll(title: string, body: string) {
+    try {
+      const pushAlerts = await this.pushAlertRepository.find();
+      const uniqueTokens = [...new Set(pushAlerts.map((alert) => alert.Token))];
+
+      const sendPromises = uniqueTokens.map((token) => {
+        const message = {
+          token,
+          notification: {
+            title,
+            body,
+          },
+          android: {
+            priority: 'high' as const,
+          },
+          apns: {
+            headers: {
+              'apns-priority': '10',
+            },
+            payload: {
+              aps: {
+                alert: {
+                  title,
+                  body,
+                },
+                sound: 'default',
+                badge: 1,
+                contentAvailable: true,
+              },
+            },
+          },
+        };
+
+        return admin.messaging().send(message);
+      });
+
+      await Promise.all(sendPromises);
+      return { success: true, sentCount: uniqueTokens.length };
+    } catch (error) {
+      console.error('FCM 전송 에러:', error);
+      throw new HttpException(
+        'FCM 메시지 전송 실패',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 }
