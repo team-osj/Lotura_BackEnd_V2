@@ -1,4 +1,11 @@
-import { Body, Controller, Get, ParseIntPipe, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  ParseIntPipe,
+  Patch,
+  Query,
+} from '@nestjs/common';
 import { DeviceService } from './device.service';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { DeviceLogService } from './device-log.service';
@@ -30,7 +37,7 @@ export class DeviceController {
     return this.deviceService.getWomensDevices();
   }
 
-  @Post('device/status')
+  @Patch('device/status')
   async updateStatus(@Body() updateStatusDto: UpdateStatusDto) {
     await this.deviceService.updateStatus(
       updateStatusDto.id,
