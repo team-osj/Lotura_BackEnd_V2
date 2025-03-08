@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { WebsocketModule } from './websocket/websocket.module';
 import configuration from './config/configuration';
 import { NoticeModule } from './notice/notice.module';
+import { DeviceModule } from './device/device.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { NoticeModule } from './notice/notice.module';
     }),
     WebsocketModule,
     NoticeModule,
+    DeviceModule,
   ],
 })
 export class AppModule {}
