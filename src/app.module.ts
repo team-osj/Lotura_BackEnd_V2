@@ -1,10 +1,13 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ScheduleModule } from '@nestjs/schedule';
 import { WebsocketModule } from './websocket/websocket.module';
 import configuration from './config/configuration';
 import { NoticeModule } from './notice/notice.module';
 import { DeviceModule } from './device/device.module';
+import { DiscordModule } from './discord/discord.module';
+import { AppService } from './app.service';
 
 @Module({
   imports: [
@@ -27,9 +30,12 @@ import { DeviceModule } from './device/device.module';
       }),
       inject: [ConfigService],
     }),
+    ScheduleModule.forRoot(),
     WebsocketModule,
     NoticeModule,
     DeviceModule,
+    DiscordModule,
   ],
+  providers: [AppService],
 })
 export class AppModule {}
