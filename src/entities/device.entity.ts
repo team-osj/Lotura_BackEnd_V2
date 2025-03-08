@@ -7,9 +7,9 @@ export class Device {
   id: number;
   // 기기 고유 아이디
 
-  // 화면에 표시되는 기기의 아이디로 W1-1 - 1번세탁기, D1-1 - 1번 건조기 라고 생각하면 됩니다.
+  // 화면에 표시되는 기기의 아이디
   @Column()
-  view_id: string;
+  view_id: number;
 
   // 기기 현재 상태
   // 0: 작동중
