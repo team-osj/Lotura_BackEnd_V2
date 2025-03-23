@@ -38,25 +38,29 @@ export class PushAlertService {
     });
   }
 
-  async create(deviceId: number, token: string, expectStatus: number): Promise<PushAlert> {
+  async create(
+    deviceId: number,
+    token: string,
+    expectStatus: number,
+  ): Promise<PushAlert> {
     const pushAlert = this.pushAlertRepository.create({
       device_id: deviceId,
-      Token: token,
-      Expect_Status: expectStatus,
+      token: token,
+      expect_status: expectStatus,
     });
     return this.pushAlertRepository.save(pushAlert);
   }
 
   async updateToken(oldToken: string, newToken: string): Promise<void> {
     await this.pushAlertRepository.update(
-      { Token: oldToken },
-      { Token: newToken },
+      { token: oldToken },
+      { token: newToken },
     );
   }
 
   async getUniqueTokens(): Promise<string[]> {
     const pushAlerts = await this.pushAlertRepository.find();
-    const uniqueTokens = [...new Set(pushAlerts.map((alert) => alert.Token))];
+    const uniqueTokens = [...new Set(pushAlerts.map((alert) => alert.token))];
     return uniqueTokens;
   }
 
@@ -82,34 +86,38 @@ export class PushAlertService {
 
   async findByToken(token: string): Promise<PushAlert[]> {
     return this.pushAlertRepository.find({
-      where: { Token: token },
+      where: { token: token },
     });
   }
 
   async updateDeviceId(token: string, deviceId: number): Promise<void> {
     await this.pushAlertRepository.update(
-      { Token: token },
+      { token: token },
       { device_id: deviceId },
     );
   }
 
-  async createOrUpdate(deviceId: number, token: string, expectStatus: number): Promise<PushAlert> {
+  async createOrUpdate(
+    deviceId: number,
+    token: string,
+    expectStatus: number,
+  ): Promise<PushAlert> {
     const existingAlert = await this.pushAlertRepository.findOne({
-      where: { Token: token },
+      where: { token: token },
     });
 
     if (existingAlert) {
       return this.pushAlertRepository.save({
         ...existingAlert,
         device_id: deviceId,
-        Expect_Status: expectStatus,
+        expect_status: expectStatus,
       });
     }
 
     const pushAlert = this.pushAlertRepository.create({
       device_id: deviceId,
-      Token: token,
-      Expect_Status: expectStatus,
+      token: token,
+      expect_status: expectStatus,
     });
     return this.pushAlertRepository.save(pushAlert);
   }
@@ -118,14 +126,18 @@ export class PushAlertService {
     const pushAlerts = await this.pushAlertRepository.find({
       where: { device_id: deviceId },
     });
-    const uniqueTokens = [...new Set(pushAlerts.map((alert) => alert.Token))];
+    const uniqueTokens = [...new Set(pushAlerts.map((alert) => alert.token))];
     return uniqueTokens;
   }
 
-  async requestPushAlert(token: string, deviceId: number, expectStatus: number) {
+  async requestPushAlert(
+    token: string,
+    deviceId: number,
+    expectStatus: number,
+  ) {
     const existing = await this.pushAlertRepository.findOne({
       where: {
-        Token: token,
+        token: token,
         device_id: deviceId,
       },
     });
@@ -149,9 +161,9 @@ export class PushAlertService {
     }
 
     const pushAlert = this.pushAlertRepository.create({
-      Token: token,
+      token: token,
       device_id: deviceId,
-      Expect_Status: expectStatus,
+      expect_status: expectStatus,
     });
 
     await this.pushAlertRepository.save(pushAlert);
@@ -160,7 +172,7 @@ export class PushAlertService {
 
   async getPushList(token: string) {
     return this.pushAlertRepository.find({
-      where: { Token: token },
+      where: { token: token },
       order: { device_id: 'ASC' },
       select: ['device_id'],
     });
@@ -168,7 +180,7 @@ export class PushAlertService {
 
   async cancelPushAlert(token: string, deviceId: number) {
     await this.pushAlertRepository.delete({
-      Token: token,
+      token: token,
       device_id: deviceId,
     });
     return this.getPushList(token);

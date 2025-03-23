@@ -1,30 +1,30 @@
-import { Entity, Column, PrimaryColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
 import { LaundryRoomType } from '../common/enums/laundry-room.enum';
 
 @Entity('device')
 export class Device {
-  @PrimaryColumn()
+  @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ name: 'view_id' })
   view_id: number;
+
+  @Column({ name: 'device_type' })
+  device_type: string;
 
   @Column()
   state: number;
 
-  @Column({ length: 11 })
-  device_type: string;
-
-  @Column({ length: 32 })
-  ON_time: string;
-
-  @Column({ length: 32 })
-  OFF_time: string;
-
-  @Column()
+  @Column({ name: 'prev_state' })
   prev_state: number;
 
-  @Column()
+  @Column({ name: 'ON_time', nullable: true })
+  ON_time: Date;
+
+  @Column({ name: 'OFF_time', nullable: true })
+  OFF_time: Date;
+
+  @Column({ length: 32 })
   hwid: string;
 
   @Column()
@@ -40,18 +40,16 @@ export class Device {
   })
   updated_at: Date;
 
-  @Column()
-  dormitory: 'boy' | 'girl';
-
-  @Column()
-  status: string;
+  @Column({
+    type: 'enum',
+    enum: LaundryRoomType,
+    default: LaundryRoomType.MENS_FIRST,
+  })
+  room_type: LaundryRoomType;
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   last_updated: Date;
 
-  @Column({
-    type: 'enum',
-    enum: LaundryRoomType,
-  })
-  room_type: LaundryRoomType;
+  @Column()
+  status: string;
 }

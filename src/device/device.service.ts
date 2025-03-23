@@ -9,7 +9,7 @@ import { LaundryRoomType } from '../common/enums/laundry-room.enum';
 export class DeviceService {
   constructor(
     @InjectRepository(Device)
-    private deviceRepository: Repository<Device>,
+    private readonly deviceRepository: Repository<Device>,
   ) {}
 
   async updateStatus(deviceId: number, state: number, type: number): Promise<void> {
@@ -66,9 +66,6 @@ export class DeviceService {
     return this.deviceRepository.find({
       where: { room_type: LaundryRoomType.MENS_FIRST },
       select: ['id', 'view_id', 'state', 'device_type'],
-      order: {
-        id: 'ASC',
-      },
     });
   }
 
@@ -76,9 +73,6 @@ export class DeviceService {
     return this.deviceRepository.find({
       where: { room_type: LaundryRoomType.MENS_SECOND },
       select: ['id', 'view_id', 'state', 'device_type'],
-      order: {
-        id: 'ASC',
-      },
     });
   }
 
@@ -86,9 +80,6 @@ export class DeviceService {
     return this.deviceRepository.find({
       where: { room_type: LaundryRoomType.WOMENS },
       select: ['id', 'view_id', 'state', 'device_type'],
-      order: {
-        id: 'ASC',
-      },
     });
   }
 

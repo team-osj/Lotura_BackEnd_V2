@@ -12,4 +12,4 @@ import { PushAlertController } from './push-alert.controller';
   providers: [PushAlertService, PushService],
   exports: [PushService],
 })
-export class PushModule {} 
+export class PushModule {}
