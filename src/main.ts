@@ -2,6 +2,8 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { downloadFirebaseToken } from './utils/firebase-token';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -9,6 +11,15 @@ async function bootstrap() {
 
   // CORS 설정
   app.enableCors();
+
+  // Firebase 토큰 다운로드
+  const configService = app.get(ConfigService);
+  try {
+    await downloadFirebaseToken(configService);
+  } catch (error) {
+    logger.error('Failed to download Firebase token:', error);
+    process.exit(1);
+  }
 
   // HTTP 서버 (3001 포트)
   await app.listen(3001);
