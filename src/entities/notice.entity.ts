@@ -1,16 +1,16 @@
 import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
 
-@Entity('notice')
+@Entity('Notice')
 export class Notice {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ length: 200 })
   title: string;
 
-  @Column()
+  @Column({ type: 'mediumtext' })
   contents: string;
 
-  @Column({ type: 'datetime' })
-  date: Date;
+  @Column({ length: 50 })
+  date: string;
 }

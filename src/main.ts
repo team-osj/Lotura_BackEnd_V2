@@ -1,16 +1,23 @@
+import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
-import { WsAdapter } from '@nestjs/platform-ws';
+import { Logger } from '@nestjs/common';
 
 async function bootstrap() {
+  const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
 
-  app.useGlobalPipes(new ValidationPipe());
-  app.useWebSocketAdapter(new WsAdapter(app));
+  // CORS 설정
   app.enableCors();
 
-  await app.listen(3000);
-  console.log(`Application is running on: ${await app.getUrl()}`);
+  // HTTP 서버 (3001 포트)
+  await app.listen(3001);
+
+  logger.log('Server is running on:');
+  logger.log('HTTP: http://localhost:3001');
+  logger.log('WebSocket:');
+  logger.log('  - Client: ws://localhost:3001/client');
+  logger.log('  - Device: ws://localhost:3001/device');
 }
+
 bootstrap();

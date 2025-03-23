@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DeviceLog } from '../entities/device-log.entity';
@@ -10,34 +10,33 @@ export class DeviceLogService {
     private deviceLogRepository: Repository<DeviceLog>,
   ) {}
 
-  async getLog(no: number): Promise<any> {
-    const log = await this.deviceLogRepository.findOne({
-      where: { No: no },
+  async findOne(id: number): Promise<DeviceLog> {
+    return this.deviceLogRepository.findOne({
+      where: { id },
     });
-
-    if (!log) {
-      throw new NotFoundException('로그? 그건 제 잔상입니다만?');
-    }
-
-    return log.Log;
   }
 
-  async getLogList() {
+  async getLog(id: number): Promise<string> {
+    const log = await this.findOne(id);
+    return log.log;
+  }
+
+  async findAll(): Promise<DeviceLog[]> {
     return this.deviceLogRepository.find({
-      select: ['No', 'HWID', 'ID', 'Start_Time', 'End_Time'],
+      select: ['id', 'hwid', 'deviceId', 'startTime', 'endTime'],
       order: {
-        No: 'DESC',
+        id: 'DESC',
       },
     });
   }
 
-  async createLog(logData: {
-    HWID: string;
-    ID: number;
-    Start_Time: Date;
-    End_Time: Date;
-    Log: any;
-  }) {
+  async create(logData: {
+    hwid: string;
+    deviceId: number;
+    startTime: Date;
+    endTime: Date;
+    log: string;
+  }): Promise<DeviceLog> {
     const newLog = this.deviceLogRepository.create(logData);
     return this.deviceLogRepository.save(newLog);
   }

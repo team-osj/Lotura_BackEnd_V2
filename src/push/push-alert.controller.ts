@@ -1,38 +1,29 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, Delete } from '@nestjs/common';
 import { PushAlertService } from './push-alert.service';
 
-class PushRequestDto {
-  token: string;
-  device_id: number;
-  expect_state: number;
-}
-
-class PushTokenDto {
-  token: string;
-}
-
-@Controller()
+@Controller('push-alerts')
 export class PushAlertController {
   constructor(private readonly pushAlertService: PushAlertService) {}
 
-  @Post('push_request')
-  async requestPush(
-    @Body() { token, device_id, expect_state }: PushRequestDto,
+  @Post('request')
+  async requestPushAlert(
+    @Body('token') token: string,
+    @Body('deviceId') deviceId: string,
+    @Body('expectState') expectState: number,
   ) {
-    return this.pushAlertService.requestPushAlert(
-      token,
-      device_id,
-      expect_state,
-    );
+    return this.pushAlertService.requestPushAlert(token, parseInt(deviceId), expectState);
   }
 
-  @Post('push_list')
-  async getPushList(@Body() { token }: PushTokenDto) {
+  @Delete(':token/:deviceId')
+  async cancelPushAlert(
+    @Param('token') token: string,
+    @Param('deviceId') deviceId: string,
+  ) {
+    return this.pushAlertService.cancelPushAlert(token, parseInt(deviceId));
+  }
+
+  @Get('list/:token')
+  async getPushList(@Param('token') token: string) {
     return this.pushAlertService.getPushList(token);
-  }
-
-  @Post('push_cancel')
-  async cancelPush(@Body() { token, device_id }: PushRequestDto) {
-    return this.pushAlertService.cancelPushAlert(token, device_id);
   }
 }

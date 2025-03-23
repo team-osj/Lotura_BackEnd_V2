@@ -28,16 +28,105 @@ export class PushAlertService {
     }
   }
 
-  async requestPushAlert(
-    token: string,
-    device_id: number,
-    expect_state: number,
-  ) {
+  async findAll(): Promise<PushAlert[]> {
+    return this.pushAlertRepository.find();
+  }
+
+  async findByDeviceId(deviceId: number): Promise<PushAlert[]> {
+    return this.pushAlertRepository.find({
+      where: { device_id: deviceId },
+    });
+  }
+
+  async create(deviceId: number, token: string, expectStatus: number): Promise<PushAlert> {
+    const pushAlert = this.pushAlertRepository.create({
+      device_id: deviceId,
+      Token: token,
+      Expect_Status: expectStatus,
+    });
+    return this.pushAlertRepository.save(pushAlert);
+  }
+
+  async updateToken(oldToken: string, newToken: string): Promise<void> {
+    await this.pushAlertRepository.update(
+      { Token: oldToken },
+      { Token: newToken },
+    );
+  }
+
+  async getUniqueTokens(): Promise<string[]> {
+    const pushAlerts = await this.pushAlertRepository.find();
+    const uniqueTokens = [...new Set(pushAlerts.map((alert) => alert.Token))];
+    return uniqueTokens;
+  }
+
+  async sendFcmToAll(title: string, body: string): Promise<void> {
+    const tokens = await this.getUniqueTokens();
+    if (tokens.length === 0) return;
+
+    const message = {
+      notification: {
+        title,
+        body,
+      },
+      tokens,
+    };
+
+    try {
+      const response = await admin.messaging().sendMulticast(message);
+      console.log('FCM 전송 결과:', response);
+    } catch (error) {
+      console.error('FCM 전송 실패:', error);
+    }
+  }
+
+  async findByToken(token: string): Promise<PushAlert[]> {
+    return this.pushAlertRepository.find({
+      where: { Token: token },
+    });
+  }
+
+  async updateDeviceId(token: string, deviceId: number): Promise<void> {
+    await this.pushAlertRepository.update(
+      { Token: token },
+      { device_id: deviceId },
+    );
+  }
+
+  async createOrUpdate(deviceId: number, token: string, expectStatus: number): Promise<PushAlert> {
+    const existingAlert = await this.pushAlertRepository.findOne({
+      where: { Token: token },
+    });
+
+    if (existingAlert) {
+      return this.pushAlertRepository.save({
+        ...existingAlert,
+        device_id: deviceId,
+        Expect_Status: expectStatus,
+      });
+    }
+
+    const pushAlert = this.pushAlertRepository.create({
+      device_id: deviceId,
+      Token: token,
+      Expect_Status: expectStatus,
+    });
+    return this.pushAlertRepository.save(pushAlert);
+  }
+
+  async getTokensByDeviceId(deviceId: number): Promise<string[]> {
+    const pushAlerts = await this.pushAlertRepository.find({
+      where: { device_id: deviceId },
+    });
+    const uniqueTokens = [...new Set(pushAlerts.map((alert) => alert.Token))];
+    return uniqueTokens;
+  }
+
+  async requestPushAlert(token: string, deviceId: number, expectStatus: number) {
     const existing = await this.pushAlertRepository.findOne({
       where: {
         Token: token,
-        device_id: device_id,
-        Expect_Status: expect_state,
+        device_id: deviceId,
       },
     });
 
@@ -49,7 +138,7 @@ export class PushAlertService {
     }
 
     const device = await this.deviceRepository.findOne({
-      where: { id: device_id },
+      where: { id: deviceId },
     });
 
     if (!device) {
@@ -61,10 +150,8 @@ export class PushAlertService {
 
     const pushAlert = this.pushAlertRepository.create({
       Token: token,
-      device_id: device_id,
-      Expect_Status: expect_state,
-      device_type: device.device_type,
-      state: device.state,
+      device_id: deviceId,
+      Expect_Status: expectStatus,
     });
 
     await this.pushAlertRepository.save(pushAlert);
@@ -75,65 +162,15 @@ export class PushAlertService {
     return this.pushAlertRepository.find({
       where: { Token: token },
       order: { device_id: 'ASC' },
-      select: ['device_id', 'device_type', 'state'],
+      select: ['device_id'],
     });
   }
 
-  async cancelPushAlert(token: string, device_id: number) {
+  async cancelPushAlert(token: string, deviceId: number) {
     await this.pushAlertRepository.delete({
       Token: token,
-      device_id: device_id,
+      device_id: deviceId,
     });
     return this.getPushList(token);
-  }
-
-  async sendFcmToAll(title: string, body: string) {
-    try {
-      const pushAlerts = await this.pushAlertRepository.find();
-      const uniqueTokens = [...new Set(pushAlerts.map((alert) => alert.Token))];
-
-      const sendPromises = uniqueTokens.map((token) => {
-        const message = {
-          token,
-          notification: {
-            title,
-            body,
-          },
-          android: {
-            priority: 'high' as const,
-          },
-          apns: {
-            headers: {
-              'apns-priority': '10',
-            },
-            payload: {
-              aps: {
-                alert: {
-                  title,
-                  body,
-                },
-                sound: 'default',
-                badge: 1,
-                contentAvailable: true,
-              },
-            },
-          },
-        };
-
-        return admin
-          .messaging()
-          .send(message)
-          .then((result) => {
-            console.log('FCM 전송 결과:', result);
-            return result;
-          });
-      });
-
-      const results = await Promise.all(sendPromises);
-      return { success: true, results, sentCount: uniqueTokens.length };
-    } catch (error) {
-      console.error('FCM 전송 실패:', error);
-      throw error;
-    }
   }
 }

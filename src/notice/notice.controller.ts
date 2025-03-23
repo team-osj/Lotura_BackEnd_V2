@@ -1,21 +1,23 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete } from '@nestjs/common';
 import { NoticeService } from './notice.service';
-import { CreateNoticeDto } from './dto/create-notice.dto';
+import { Notice } from '../entities/notice.entity';
 
-@Controller()
+@Controller('notices')
 export class NoticeController {
   constructor(private readonly noticeService: NoticeService) {}
 
-  @Get('notice')
-  async getNotices() {
-    return this.noticeService.getNotices();
+  @Get()
+  async findAll(): Promise<Notice[]> {
+    return this.noticeService.findAll();
   }
 
-  @Post('notice')
-  async createNotice(@Body() createNoticeDto: CreateNoticeDto) {
-    return this.noticeService.createNotice(
-      createNoticeDto.title,
-      createNoticeDto.contents,
-    );
+  @Post()
+  async create(@Body() noticeData: Partial<Notice>): Promise<Notice> {
+    return this.noticeService.create(noticeData);
+  }
+
+  @Delete(':id')
+  async remove(@Param('id') id: string): Promise<void> {
+    return this.noticeService.remove(parseInt(id));
   }
 }

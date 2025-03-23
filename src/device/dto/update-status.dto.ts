@@ -3,7 +3,7 @@ import { IsNumber, IsNotEmpty } from 'class-validator';
 export class UpdateStatusDto {
   @IsNotEmpty()
   @IsNumber()
-  id: number;
+  device_id: number;
 
   @IsNotEmpty()
   @IsNumber()

@@ -10,7 +10,7 @@ export class AppVersionService {
     private appVersionRepository: Repository<AppVersion>,
   ) {}
 
-  async getAndroidVersion() {
+  async getAndroidVersion(): Promise<AppVersion> {
     const version = await this.appVersionRepository.findOne({
       where: { os_system: 'android' },
     });
@@ -22,7 +22,7 @@ export class AppVersionService {
     return version;
   }
 
-  async getIosVersion() {
+  async getIosVersion(): Promise<AppVersion> {
     const version = await this.appVersionRepository.findOne({
       where: { os_system: 'ios' },
     });
@@ -34,14 +34,23 @@ export class AppVersionService {
     return version;
   }
 
-  async updateVersion(
-    os_system: string,
-    version: string,
-    store_status: number,
-  ) {
-    await this.appVersionRepository.update(
-      { os_system },
-      { version, store_status },
-    );
+  async updateVersion(os_system: string, version: string, store_status: string): Promise<AppVersion> {
+    const existingVersion = await this.appVersionRepository.findOne({
+      where: { os_system },
+    });
+
+    if (existingVersion) {
+      return this.appVersionRepository.save({
+        ...existingVersion,
+        version,
+        store_status,
+      });
+    }
+
+    return this.appVersionRepository.save({
+      os_system,
+      version,
+      store_status,
+    });
   }
 }

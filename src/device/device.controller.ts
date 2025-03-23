@@ -5,17 +5,50 @@ import {
   ParseIntPipe,
   Patch,
   Query,
+  Post,
+  Param,
+  Put,
+  Delete,
 } from '@nestjs/common';
 import { DeviceService } from './device.service';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { DeviceLogService } from './device-log.service';
+import { Device } from '../entities/device.entity';
 
-@Controller()
+@Controller('devices')
 export class DeviceController {
   constructor(
     private readonly deviceLogService: DeviceLogService,
     private readonly deviceService: DeviceService,
   ) {}
+
+  @Get()
+  async findAll(): Promise<Device[]> {
+    return this.deviceService.findAll();
+  }
+
+  @Get(':id')
+  async findOne(@Param('id', ParseIntPipe) id: number): Promise<Device> {
+    return this.deviceService.findOne(id);
+  }
+
+  @Post()
+  async create(@Body() deviceData: Partial<Device>): Promise<Device> {
+    return this.deviceService.create(deviceData);
+  }
+
+  @Put(':id')
+  async update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() deviceData: Partial<Device>,
+  ): Promise<Device> {
+    return this.deviceService.update(id, deviceData);
+  }
+
+  @Delete(':id')
+  async remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
+    return this.deviceService.remove(id);
+  }
 
   @Get('device_list')
   async getDeviceList() {
@@ -40,7 +73,7 @@ export class DeviceController {
   @Patch('device/status')
   async updateStatus(@Body() updateStatusDto: UpdateStatusDto) {
     await this.deviceService.updateStatus(
-      updateStatusDto.id,
+      updateStatusDto.device_id,
       updateStatusDto.state,
       updateStatusDto.type,
     );
@@ -52,8 +85,8 @@ export class DeviceController {
     return this.deviceLogService.getLog(no);
   }
 
-  @Get('log_list')
-  async getLogList() {
-    return this.deviceLogService.getLogList();
+  @Get('logs')
+  async getLogs() {
+    return this.deviceLogService.findAll();
   }
 }
