@@ -23,11 +23,17 @@ export class DeviceService {
       console.log(`Device not found: ${deviceId}`);
       return;
     }
-
-    await this.deviceRepository.update(deviceId, {
-      state,
-      prev_state: state,
-    });
+    
+    // 새로운 상태가 현재 상태와 다를 때만 prev_state 업데이트
+    if (device.state !== state) {
+      await this.deviceRepository.update(deviceId, {
+        state,
+        prev_state: device.state, // 현재 상태를 prev_state에 저장
+      });
+    } else {
+      // 상태가 같다면 state만 업데이트(중복 업데이트 방지)
+      await this.deviceRepository.update(deviceId, { state });
+    }
 
     if (state === 0 && type === 1) {
       // 켜기
