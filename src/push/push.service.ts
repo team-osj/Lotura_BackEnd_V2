@@ -1,12 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PushAlertService } from './push-alert.service';
-import * as admin from 'firebase-admin';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Device } from '../entities/device.entity';
 import { PushAlert } from '../entities/push-alert.entity';
 import * as moment from 'moment';
+import { FirebaseService } from '../firebase/firebase.service';
 
 @Injectable()
 export class PushService {
@@ -19,18 +19,8 @@ export class PushService {
     private readonly deviceRepository: Repository<Device>,
     @InjectRepository(PushAlert)
     private readonly pushAlertRepository: Repository<PushAlert>,
-  ) {
-    // Firebase Admin 초기화
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId: this.configService.get('FIREBASE_PROJECT_ID'),
-        clientEmail: this.configService.get('FIREBASE_CLIENT_EMAIL'),
-        privateKey: this.configService
-          .get('FIREBASE_PRIVATE_KEY')
-          .replace(/\\n/g, '\n'),
-      }),
-    });
-  }
+    private readonly firebaseService: FirebaseService,
+  ) {}
 
   async getDevicePushAlerts(deviceId: number) {
     const pushAlerts = await this.pushAlertService.findByDeviceId(deviceId);
@@ -72,7 +62,7 @@ export class PushService {
         },
       };
 
-      const response = await admin.messaging().send(payload);
+      const response = await this.firebaseService.getAdmin().messaging().send(payload);
       this.logger.log(
         `Successfully sent message to device ${deviceId}: ${response}`,
       );
@@ -109,7 +99,7 @@ export class PushService {
         },
       };
 
-      const response = await admin.messaging().sendEachForMulticast(message);
+      const response = await this.firebaseService.getAdmin().messaging().sendEachForMulticast(message);
       if (response.failureCount > 0) {
         const failedTokens = [];
         response.responses.forEach((resp, idx) => {

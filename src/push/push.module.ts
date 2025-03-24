@@ -5,9 +5,13 @@ import { Device } from '../entities/device.entity';
 import { PushAlertService } from './push-alert.service';
 import { PushService } from './push.service';
 import { PushAlertController } from './push-alert.controller';
+import { FirebaseModule } from '../firebase/firebase.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([PushAlert, Device])],
+  imports: [
+    TypeOrmModule.forFeature([PushAlert, Device]),
+    FirebaseModule,
+  ],
   controllers: [PushAlertController],
   providers: [PushAlertService, PushService],
   exports: [PushService],

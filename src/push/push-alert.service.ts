@@ -3,8 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PushAlert } from '../entities/push-alert.entity';
 import { Device } from '../entities/device.entity';
-import * as admin from 'firebase-admin';
-import { ConfigService } from '@nestjs/config';
+import { FirebaseService } from '../firebase/firebase.service';
 
 @Injectable()
 export class PushAlertService {
@@ -13,20 +12,8 @@ export class PushAlertService {
     private pushAlertRepository: Repository<PushAlert>,
     @InjectRepository(Device)
     private deviceRepository: Repository<Device>,
-    private configService: ConfigService,
-  ) {
-    if (!admin.apps.length) {
-      admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId: configService.get('FIREBASE_PROJECT_ID'),
-          clientEmail: configService.get('FIREBASE_CLIENT_EMAIL'),
-          privateKey: configService
-            .get('FIREBASE_PRIVATE_KEY')
-            .replace(/\\n/g, '\n'),
-        }),
-      });
-    }
-  }
+    private firebaseService: FirebaseService,
+  ) {}
 
   async findAll(): Promise<PushAlert[]> {
     return this.pushAlertRepository.find();
@@ -77,7 +64,7 @@ export class PushAlertService {
     };
 
     try {
-      const response = await admin.messaging().sendMulticast(message);
+      const response = await this.firebaseService.getAdmin().messaging().sendMulticast(message);
       console.log('FCM 전송 결과:', response);
     } catch (error) {
       console.error('FCM 전송 실패:', error);
