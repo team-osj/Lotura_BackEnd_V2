@@ -8,27 +8,68 @@ import { downloadFirebaseToken } from './utils/firebase-token';
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
+  const configService = app.get(ConfigService);
 
   // CORS 설정
-  app.enableCors();
+  app.enableCors({
+    origin: '*',
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true,
+  });
 
   // Firebase 토큰 다운로드
-  const configService = app.get(ConfigService);
   try {
     await downloadFirebaseToken(configService);
+    logger.log('Firebase token downloaded successfully');
   } catch (error) {
     logger.error('Failed to download Firebase token:', error);
     process.exit(1);
   }
 
-  // HTTP 서버 (3001 포트)
-  await app.listen(3001);
+  // 서버 시작
+  const port = configService.get('PORT') || 3000;
+  await app.listen(port);
+  logger.log(`Application is running on: ${await app.getUrl()}`);
 
-  logger.log('Server is running on:');
-  logger.log('HTTP: http://localhost:3001');
-  logger.log('WebSocket:');
-  logger.log('  - Client: ws://localhost:3001/client');
-  logger.log('  - Device: ws://localhost:3001/device');
+  // 프로세스 예외 처리
+  process.on('uncaughtException', (error) => {
+    logger.error('Uncaught Exception:', error);
+    // 서버 재시작
+    app.close().then(() => {
+      logger.log('Restarting server...');
+      process.exit(1); // 프로세스가 종료되면 PM2가 자동으로 재시작
+    });
+  });
+
+  process.on('unhandledRejection', (reason, promise) => {
+    logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    // 서버 재시작
+    app.close().then(() => {
+      logger.log('Restarting server...');
+      process.exit(1); // 프로세스가 종료되면 PM2가 자동으로 재시작
+    });
+  });
+
+  // SIGTERM 시그널 처리
+  process.on('SIGTERM', () => {
+    logger.log('SIGTERM received. Performing graceful shutdown...');
+    app.close().then(() => {
+      process.exit(0);
+    });
+  });
+
+  // SIGINT 시그널 처리
+  process.on('SIGINT', () => {
+    logger.log('SIGINT received. Performing graceful shutdown...');
+    app.close().then(() => {
+      process.exit(0);
+    });
+  });
 }
 
-bootstrap();
+// 애플리케이션 시작
+bootstrap().catch((error) => {
+  const logger = new Logger('Bootstrap');
+  logger.error('Failed to start application:', error);
+  process.exit(1); // 프로세스가 종료되면 PM2가 자동으로 재시작
+});
