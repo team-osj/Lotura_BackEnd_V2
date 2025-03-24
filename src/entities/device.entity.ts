@@ -49,7 +49,4 @@ export class Device {
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   last_updated: Date;
-
-  @Column()
-  status: string;
 }

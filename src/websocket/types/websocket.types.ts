@@ -1,4 +1,4 @@
-import { WebSocket } from 'ws';
+import * as WebSocket from 'ws';
 
 export interface ExtendedWebSocket extends WebSocket {
   isAlive: boolean;

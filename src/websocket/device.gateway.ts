@@ -1,13 +1,18 @@
 import {
   WebSocketGateway,
   WebSocketServer,
-  SubscribeMessage,
   OnGatewayConnection,
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { Server } from 'ws';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ExtendedWebSocket } from './types/websocket.types';
+import { DeviceService } from '../device/device.service';
+import { ClientWebsocketGateway } from './client.gateway';
+import { ConfigService } from '@nestjs/config';
+import * as moment from 'moment';
+import { PushService } from '../push/push.service';
+import { DeviceLogService } from '../device/device-log.service';
 
 interface ConnectedDevice {
   ws: ExtendedWebSocket;
@@ -27,10 +32,18 @@ export class DeviceWebsocketGateway
   @WebSocketServer()
   server: Server;
 
+  private readonly logger = new Logger(DeviceWebsocketGateway.name);
   private connectedDevices: Map<string, ConnectedDevice> = new Map();
+  private deviceLog: Map<string, any> = new Map();
   private heartbeatInterval: NodeJS.Timer;
 
-  constructor() {
+  constructor(
+    private readonly deviceService: DeviceService,
+    private readonly clientGateway: ClientWebsocketGateway,
+    private readonly configService: ConfigService,
+    private readonly pushService: PushService,
+    private readonly deviceLogService: DeviceLogService,
+  ) {
     this.setupHeartbeat();
   }
 
@@ -38,6 +51,7 @@ export class DeviceWebsocketGateway
     this.heartbeatInterval = setInterval(() => {
       this.connectedDevices.forEach((device, hwid) => {
         if (!device.ws.isAlive) {
+          this.logger.log(`Heartbeat failed for device ${hwid}`);
           device.ws.terminate();
           this.connectedDevices.delete(hwid);
           return;
@@ -49,11 +63,27 @@ export class DeviceWebsocketGateway
   }
 
   async handleConnection(client: ExtendedWebSocket, request: any) {
+    // 기본 인증 확인
+    const authHeader = request.headers.authorization;
+    if (!this.validateBasicAuth(authHeader)) {
+      client.terminate();
+      this.logger.warn('Authentication failed. Connection terminated.');
+      return;
+    }
+
     const hwid = request.headers['hwid'];
     const ch1 = request.headers['ch1'];
     const ch2 = request.headers['ch2'];
 
-    console.log(`[Device][Connected] [${hwid},${ch1},${ch2}]`);
+    this.logger.log(`[Device][Connected] [${hwid},${ch1},${ch2}]`);
+
+    // 기존 연결된 기기가 있으면 연결 종료
+    const prevDevice = this.connectedDevices.get(hwid);
+    if (prevDevice) {
+      prevDevice.ws.terminate();
+      this.connectedDevices.delete(hwid);
+      this.logger.log(`Previous connection for device ${hwid} was terminated`);
+    }
 
     client.isAlive = true;
 
@@ -71,23 +101,113 @@ export class DeviceWebsocketGateway
         device.ws.isAlive = true;
       }
     });
+
+    // 메시지 수신 이벤트 핸들러 설정
+    client.on('message', async (data: string) => {
+      try {
+        const message = JSON.parse(data.toString());
+        await this.handleDeviceMessage(hwid, message);
+      } catch (error) {
+        this.logger.error(`[Device][Message Error] ${error.message}`);
+      }
+    });
   }
 
   async handleDisconnect(client: ExtendedWebSocket) {
     for (const [hwid, device] of this.connectedDevices.entries()) {
       if (device.ws === client) {
-        console.log(
+        this.logger.log(
           `[Device][Disconnected] [${device.hwid},${device.ch1},${device.ch2}]`,
         );
         this.connectedDevices.delete(hwid);
+
+        // 연결 해제 시 디바이스 상태 업데이트 (2: disconnected)
+        await this.deviceService.updateStatus(parseInt(device.ch1), 2, 0);
+        await this.deviceService.updateStatus(parseInt(device.ch2), 2, 0);
         break;
       }
     }
   }
 
-  @SubscribeMessage('message')
-  async handleMessage(client: ExtendedWebSocket, payload: string) {
-    console.log(`[Device][Message] ${payload}`);
+  private async handleDeviceMessage(hwid: string, message: any) {
+    const device = this.connectedDevices.get(hwid);
+    if (!device) return;
+
+    // 상태 업데이트 메시지 처리
+    if (message.title === 'Update') {
+      this.logger.log(
+        `[Device][Update] ID: ${message.id} Status: ${message.state}`,
+      );
+
+      const type = message.type !== undefined ? message.type : 1;
+
+      // 디바이스 상태 업데이트
+      await this.deviceService.updateStatus(
+        parseInt(message.id),
+        message.state,
+        type,
+      );
+
+      // 클라이언트에게 브로드캐스트
+      this.clientGateway.broadcastToClients({
+        type: 'device_status_update',
+        id: parseInt(message.id),
+        state: message.state,
+        device_type: await this.deviceService.getDeviceType(
+          parseInt(message.id),
+        ),
+      });
+    }
+    // 디바이스 데이터 요청 처리
+    else if (message.title === 'GetData') {
+      this.logger.log(`[Device][GetData] HWID: ${hwid}`);
+
+      message.ch1_current = parseFloat(message.ch1_current).toFixed(2);
+      message.ch2_current = parseFloat(message.ch2_current).toFixed(2);
+    }
+    // 로그 처리
+    else if (message.title === 'Log') {
+      this.logger.log(`[Device][Log] ID: ${message.id}`);
+
+      const logKey = `${hwid}_${message.id}`;
+      const jsonLog = JSON.parse(message.log);
+
+      if (jsonLog.START) {
+        jsonLog.START.local_time = moment().format();
+      }
+
+      const existingLog = this.deviceLog.get(logKey);
+
+      if (!existingLog) {
+        this.deviceLog.set(logKey, jsonLog);
+      } else {
+        // 기존 로그와 병합
+        const mergedLog = { ...existingLog, ...jsonLog };
+        this.deviceLog.set(logKey, mergedLog);
+      }
+
+      const updatedLog = this.deviceLog.get(logKey);
+      if (updatedLog && updatedLog.END) {
+        this.logger.log(`[Device][LogEnd] ID: ${message.id}`);
+        updatedLog.END.local_time = moment().format();
+
+        if (updatedLog.START) {
+          await this.deviceLogService.saveLog(
+            hwid,
+            message.id,
+            updatedLog.START.local_time,
+            updatedLog.END.local_time,
+            JSON.stringify(updatedLog),
+          );
+
+          this.deviceLog.delete(logKey);
+        } else {
+          this.logger.log(
+            '[Device][LogEnd] Not Logged Due to START END Undefined',
+          );
+        }
+      }
+    }
   }
 
   sendToDevice(hwid: string, data: any) {
@@ -95,5 +215,34 @@ export class DeviceWebsocketGateway
     if (device && device.ws.readyState === device.ws.OPEN) {
       device.ws.send(JSON.stringify(data));
     }
+  }
+
+  getAllConnectedDevices(): Array<{ hwid: string; ch1: string; ch2: string }> {
+    const devices = [];
+    this.connectedDevices.forEach((device) => {
+      devices.push({
+        hwid: device.hwid,
+        ch1: device.ch1,
+        ch2: device.ch2,
+      });
+    });
+    return devices;
+  }
+
+  private validateBasicAuth(authHeader: string): boolean {
+    if (!authHeader || !authHeader.startsWith('Basic ')) {
+      return false;
+    }
+
+    const base64Credentials = authHeader.split(' ')[1];
+    const credentials = Buffer.from(base64Credentials, 'base64').toString(
+      'ascii',
+    );
+    const [username, password] = credentials.split(':');
+
+    const configUsername = this.configService.get<string>('AUTH_USERNAME');
+    const configPassword = this.configService.get<string>('AUTH_PASSWORD');
+
+    return username === configUsername && password === configPassword;
   }
 }

@@ -34,7 +34,11 @@ export class AppVersionService {
     return version;
   }
 
-  async updateVersion(os_system: string, version: string, store_status: string): Promise<AppVersion> {
+  async updateVersion(
+    os_system: string,
+    version: string,
+    store_status: string,
+  ): Promise<AppVersion> {
     const existingVersion = await this.appVersionRepository.findOne({
       where: { os_system },
     });

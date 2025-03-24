@@ -121,4 +121,16 @@ export class DeviceService {
   async remove(deviceId: number): Promise<void> {
     await this.deviceRepository.delete(deviceId);
   }
+
+  async getDeviceType(deviceId: number): Promise<string> {
+    const device = await this.deviceRepository.findOne({
+      where: { id: deviceId },
+    });
+
+    if (!device) {
+      throw new Error(`Device with id ${deviceId} not found`);
+    }
+
+    return device.device_type;
+  }
 }
