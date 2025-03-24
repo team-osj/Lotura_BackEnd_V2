@@ -139,6 +139,9 @@ export class DeviceWebsocketGateway
     const device = this.connectedDevices.get(hwid);
     if (!device) return;
 
+    // 메시지 전체 내용 로깅 (디버깅용)
+    this.logger.log(`[Device][Message Received] HWID: ${hwid}, Message: ${JSON.stringify(message)}`);
+    
     // 상태 업데이트 메시지 처리
     if (message.title === 'Update') {
       this.logger.log(
@@ -146,10 +149,17 @@ export class DeviceWebsocketGateway
       );
 
       const type = message.type !== undefined ? message.type : 1;
+      const deviceId = parseInt(message.id);
+      
+      // NaN 검사 추가
+      if (isNaN(deviceId)) {
+        this.logger.error(`[Device][Error] Invalid device ID: ${message.id}`);
+        return;
+      }
 
       // 디바이스 상태 업데이트
       await this.deviceService.updateStatus(
-        parseInt(message.id),
+        deviceId,
         message.state,
         type,
       );
@@ -157,11 +167,9 @@ export class DeviceWebsocketGateway
       // 클라이언트에게 브로드캐스트
       this.clientGateway.broadcastToClients({
         type: 'device_status_update',
-        id: parseInt(message.id),
+        id: deviceId,
         state: message.state,
-        device_type: await this.deviceService.getDeviceType(
-          parseInt(message.id),
-        ),
+        device_type: await this.deviceService.getDeviceType(deviceId),
       });
     }
     // 디바이스 데이터 요청 처리
@@ -173,45 +181,55 @@ export class DeviceWebsocketGateway
     }
     // 로그 처리
     else if (message.title === 'Log') {
-      this.logger.log(`[Device][Log] ID: ${message.id}`);
+      this.logger.log(`[Device][Log] ID: ${message.id}, Raw log: ${message.log}`);
 
       const logKey = `${hwid}_${message.id}`;
-      const jsonLog = JSON.parse(message.log);
+      try {
+        const jsonLog = JSON.parse(message.log);
 
-      if (jsonLog.START) {
-        jsonLog.START.local_time = moment().format();
-      }
-
-      const existingLog = this.deviceLog.get(logKey);
-
-      if (!existingLog) {
-        this.deviceLog.set(logKey, jsonLog);
-      } else {
-        // 기존 로그와 병합
-        const mergedLog = { ...existingLog, ...jsonLog };
-        this.deviceLog.set(logKey, mergedLog);
-      }
-
-      const updatedLog = this.deviceLog.get(logKey);
-      if (updatedLog && updatedLog.END) {
-        this.logger.log(`[Device][LogEnd] ID: ${message.id}`);
-        updatedLog.END.local_time = moment().format();
-
-        if (updatedLog.START) {
-          await this.deviceLogService.saveLog(
-            hwid,
-            message.id,
-            updatedLog.START.local_time,
-            updatedLog.END.local_time,
-            JSON.stringify(updatedLog),
-          );
-
-          this.deviceLog.delete(logKey);
-        } else {
-          this.logger.log(
-            '[Device][LogEnd] Not Logged Due to START END Undefined',
-          );
+        if (jsonLog.START) {
+          jsonLog.START.local_time = moment().format();
         }
+
+        const existingLog = this.deviceLog.get(logKey);
+
+        if (!existingLog) {
+          this.deviceLog.set(logKey, jsonLog);
+        } else {
+          // 기존 로그와 병합
+          const mergedLog = { ...existingLog, ...jsonLog };
+          this.deviceLog.set(logKey, mergedLog);
+        }
+
+        const updatedLog = this.deviceLog.get(logKey);
+        if (updatedLog && updatedLog.END) {
+          this.logger.log(`[Device][LogEnd] ID: ${message.id}`);
+          updatedLog.END.local_time = moment().format();
+
+          if (updatedLog.START) {
+            const deviceId = parseInt(message.id);
+            if (isNaN(deviceId)) {
+              this.logger.error(`[Device][Error] Invalid device ID in log: ${message.id}`);
+              return;
+            }
+            
+            await this.deviceLogService.saveLog(
+              hwid,
+              deviceId,
+              updatedLog.START.local_time,
+              updatedLog.END.local_time,
+              JSON.stringify(updatedLog),
+            );
+
+            this.deviceLog.delete(logKey);
+          } else {
+            this.logger.log(
+              '[Device][LogEnd] Not Logged Due to START END Undefined',
+            );
+          }
+        }
+      } catch (error) {
+        this.logger.error(`[Device][Log Error] Failed to parse log: ${error.message}`);
       }
     }
   }
