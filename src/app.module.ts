@@ -6,6 +6,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { DeviceModule } from './device/device.module';
 import { PushModule } from './push/push.module';
+import { WebsocketModule } from './websocket/websocket.module';
 import { Device } from './entities/device.entity';
 import { DeviceLog } from './entities/device-log.entity';
 import { PushAlert } from './entities/push-alert.entity';
@@ -32,6 +33,7 @@ import { PushAlert } from './entities/push-alert.entity';
     ScheduleModule.forRoot(),
     DeviceModule,
     PushModule,
+    WebsocketModule,
   ],
   controllers: [AppController],
   providers: [AppService],

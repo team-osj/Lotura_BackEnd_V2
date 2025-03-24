@@ -4,11 +4,15 @@ import { AppModule } from './app.module';
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { downloadFirebaseToken } from './utils/firebase-token';
+import { WsAdapter } from '@nestjs/platform-ws';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
+
+  // WebSocket 어댑터 설정
+  app.useWebSocketAdapter(new WsAdapter(app));
 
   // CORS 설정
   app.enableCors({

@@ -9,13 +9,14 @@ import {
   Param,
   Put,
   Delete,
+  NotFoundException,
 } from '@nestjs/common';
 import { DeviceService } from './device.service';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { DeviceLogService } from './device-log.service';
 import { Device } from '../entities/device.entity';
 
-@Controller('devices')
+@Controller('device')
 export class DeviceController {
   constructor(
     private readonly deviceLogService: DeviceLogService,
@@ -88,5 +89,19 @@ export class DeviceController {
   @Get('logs')
   async getLogs() {
     return this.deviceLogService.findAll();
+  }
+
+  @Get('room/:roomType')
+  async getDevicesByRoomType(@Param('roomType') roomType: string) {
+    switch (roomType) {
+      case 'mens_first':
+        return this.deviceService.getMensFirstDevices();
+      case 'mens_second':
+        return this.deviceService.getMensSecondDevices();
+      case 'womens':
+        return this.deviceService.getWomensDevices();
+      default:
+        throw new NotFoundException(`Room type ${roomType} not found`);
+    }
   }
 }

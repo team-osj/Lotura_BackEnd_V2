@@ -10,6 +10,6 @@ import { DeviceLogService } from './device-log.service';
   imports: [TypeOrmModule.forFeature([Device, DeviceLog])],
   controllers: [DeviceController],
   providers: [DeviceService, DeviceLogService],
-  exports: [DeviceService],
+  exports: [DeviceService, DeviceLogService],
 })
 export class DeviceModule {}
