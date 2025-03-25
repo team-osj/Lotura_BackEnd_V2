@@ -149,7 +149,7 @@ export class DeviceWebsocketGateway
       );
 
       const type = message.type !== undefined ? message.type : 1;
-      const deviceId = parseInt(message.id);
+      const deviceId = Number(message.id);
       
       // NaN 검사 추가
       if (isNaN(deviceId)) {
@@ -181,9 +181,14 @@ export class DeviceWebsocketGateway
     }
     // 로그 처리
     else if (message.title === 'Log') {
-      this.logger.log(`[Device][Log] ID: ${message.id}, Raw log: ${message.log}`);
+      const deviceId = Number(message.id);
+      
+      // NaN 검사 추가
+      if (isNaN(deviceId)) {
+        this.logger.error(`[Device][Error] Invalid device ID in log: ${message.id}`);
+        return;
+      }
 
-      const logKey = `${hwid}_${message.id}`;
       try {
         const jsonLog = JSON.parse(message.log);
 
@@ -191,6 +196,7 @@ export class DeviceWebsocketGateway
           jsonLog.START.local_time = moment().format();
         }
 
+        const logKey = `${hwid}_${deviceId}`;
         const existingLog = this.deviceLog.get(logKey);
 
         if (!existingLog) {
@@ -203,16 +209,9 @@ export class DeviceWebsocketGateway
 
         const updatedLog = this.deviceLog.get(logKey);
         if (updatedLog && updatedLog.END) {
-          this.logger.log(`[Device][LogEnd] ID: ${message.id}`);
           updatedLog.END.local_time = moment().format();
 
           if (updatedLog.START) {
-            const deviceId = parseInt(message.id);
-            if (isNaN(deviceId)) {
-              this.logger.error(`[Device][Error] Invalid device ID in log: ${message.id}`);
-              return;
-            }
-            
             await this.deviceLogService.saveLog(
               hwid,
               deviceId,
@@ -222,10 +221,6 @@ export class DeviceWebsocketGateway
             );
 
             this.deviceLog.delete(logKey);
-          } else {
-            this.logger.log(
-              '[Device][LogEnd] Not Logged Due to START END Undefined',
-            );
           }
         }
       } catch (error) {
