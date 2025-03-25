@@ -242,15 +242,22 @@ export class DeviceWebsocketGateway
   }
 
   getAllConnectedDevices(): Array<{ hwid: string; ch1: string; ch2: string }> {
-    const devices = [];
-    this.connectedDevices.forEach((device) => {
-      devices.push({
-        hwid: device.hwid,
-        ch1: device.ch1,
-        ch2: device.ch2,
+    try {
+      const devices = [];
+      this.connectedDevices.forEach((device) => {
+        if (device && device.hwid && device.ch1 && device.ch2) {
+          devices.push({
+            hwid: device.hwid,
+            ch1: device.ch1,
+            ch2: device.ch2,
+          });
+        }
       });
-    });
-    return devices;
+      return devices;
+    } catch (error) {
+      this.logger.error(`Error getting connected devices: ${error.message}`);
+      return [];
+    }
   }
 
   private validateBasicAuth(authHeader: string): boolean {

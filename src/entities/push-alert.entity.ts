@@ -14,10 +14,7 @@ export class PushAlert {
   @Column({ name: 'expect_status' })
   expect_status: number;
 
-  @Column({ name: 'device_type' })
-  device_type: string;
-
-  @Column()
+  @Column({ default: 0 })
   state: number;
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })

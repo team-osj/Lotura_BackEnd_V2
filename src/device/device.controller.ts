@@ -15,13 +15,20 @@ import { DeviceService } from './device.service';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { DeviceLogService } from './device-log.service';
 import { Device } from '../entities/device.entity';
+import { DeviceWebsocketGateway } from '../websocket/device.gateway';
 
 @Controller('device')
 export class DeviceController {
   constructor(
     private readonly deviceLogService: DeviceLogService,
     private readonly deviceService: DeviceService,
+    private readonly deviceWebsocketGateway: DeviceWebsocketGateway,
   ) {}
+
+  @Get('connected')
+  async getConnectedDevices() {
+    return this.deviceWebsocketGateway.getAllConnectedDevices();
+  }
 
   @Get()
   async findAll(): Promise<Device[]> {
@@ -71,7 +78,7 @@ export class DeviceController {
     return this.deviceService.getWomensDevices();
   }
 
-  @Patch('device/status')
+  @Patch('status')
   async updateStatus(@Body() updateStatusDto: UpdateStatusDto) {
     await this.deviceService.updateStatus(
       updateStatusDto.device_id,
