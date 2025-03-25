@@ -63,20 +63,6 @@ export class DeviceWebsocketGateway
   }
 
   async handleConnection(client: ExtendedWebSocket, request: any) {
-    // 디버깅을 위해 모든 헤더 로깅
-    this.logger.log(`[Device][Connection] Headers: ${JSON.stringify(request.headers)}`);
-    
-    // 인증 완전 제거 - 개발 환경에서는 인증 없이 연결 허용
-    // 필요할 경우 프로덕션 환경에서만 인증 활성화
-    // if (this.configService.get('NODE_ENV') === 'production') {
-    //   const authHeader = request.headers.authorization;
-    //   if (!this.validateBasicAuth(authHeader)) {
-    //     this.logger.warn(`Authentication failed. Connection terminated.`);
-    //     client.terminate();
-    //     return;
-    //   }
-    // }
-
     const hwid = request.headers['hwid'];
     const ch1 = request.headers['ch1'];
     const ch2 = request.headers['ch2'];
@@ -140,8 +126,10 @@ export class DeviceWebsocketGateway
     if (!device) return;
 
     // 메시지 전체 내용 로깅 (디버깅용)
-    this.logger.log(`[Device][Message Received] HWID: ${hwid}, Message: ${JSON.stringify(message)}`);
-    
+    this.logger.log(
+      `[Device][Message Received] HWID: ${hwid}, Message: ${JSON.stringify(message)}`,
+    );
+
     // 상태 업데이트 메시지 처리
     if (message.title === 'Update') {
       this.logger.log(
@@ -150,7 +138,7 @@ export class DeviceWebsocketGateway
 
       const type = message.type !== undefined ? message.type : 1;
       const deviceId = Number(message.id);
-      
+
       // NaN 검사 추가
       if (isNaN(deviceId)) {
         this.logger.error(`[Device][Error] Invalid device ID: ${message.id}`);
@@ -158,11 +146,7 @@ export class DeviceWebsocketGateway
       }
 
       // 디바이스 상태 업데이트
-      await this.deviceService.updateStatus(
-        deviceId,
-        message.state,
-        type,
-      );
+      await this.deviceService.updateStatus(deviceId, message.state, type);
 
       // 클라이언트에게 브로드캐스트
       this.clientGateway.broadcastToClients({
@@ -182,10 +166,12 @@ export class DeviceWebsocketGateway
     // 로그 처리
     else if (message.title === 'Log') {
       const deviceId = Number(message.id);
-      
+
       // NaN 검사 추가
       if (isNaN(deviceId)) {
-        this.logger.error(`[Device][Error] Invalid device ID in log: ${message.id}`);
+        this.logger.error(
+          `[Device][Error] Invalid device ID in log: ${message.id}`,
+        );
         return;
       }
 
@@ -224,7 +210,9 @@ export class DeviceWebsocketGateway
           }
         }
       } catch (error) {
-        this.logger.error(`[Device][Log Error] Failed to parse log: ${error.message}`);
+        this.logger.error(
+          `[Device][Log Error] Failed to parse log: ${error.message}`,
+        );
       }
     }
   }
@@ -253,33 +241,5 @@ export class DeviceWebsocketGateway
       this.logger.error(`Error getting connected devices: ${error.message}`);
       return [];
     }
-  }
-
-  private validateBasicAuth(authHeader: string): boolean {
-    // 디버깅을 위한 로깅 추가
-    this.logger.log(`[Device][Auth] Auth header: ${authHeader}`);
-    
-    if (!authHeader || !authHeader.startsWith('Basic ')) {
-      this.logger.warn(`[Device][Auth] Invalid auth header format: ${authHeader}`);
-      return false;
-    }
-
-    const base64Credentials = authHeader.split(' ')[1];
-    this.logger.log(`[Device][Auth] Base64 credentials: ${base64Credentials}`);
-    
-    const credentials = Buffer.from(base64Credentials, 'base64').toString('ascii');
-    // 보안을 위해 비밀번호는 로그에 남기지 않음
-    this.logger.log(`[Device][Auth] Credentials decoded successfully`);
-    
-    const [username, password] = credentials.split(':');
-
-    const configUsername = this.configService.get<string>('AUTH_USERNAME');
-    const configPassword = this.configService.get<string>('AUTH_PASSWORD');
-    
-    this.logger.log(`[Device][Auth] Config username: ${configUsername}, Provided username: ${username}`);
-
-    // 테스트를 위해 임시로 항상 true 반환
-    // return username === configUsername && password === configPassword;
-    return true;
   }
 }
