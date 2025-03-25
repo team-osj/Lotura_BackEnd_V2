@@ -137,7 +137,7 @@ export class DeviceWebsocketGateway
       );
 
       const type = message.type !== undefined ? message.type : 1;
-      const deviceId = Number(message.id);
+      const deviceId = parseInt(message.id, 10);
 
       // NaN 검사 추가
       if (isNaN(deviceId)) {
@@ -147,6 +147,40 @@ export class DeviceWebsocketGateway
 
       // 디바이스 상태 업데이트
       await this.deviceService.updateStatus(deviceId, message.state, type);
+
+      // FCM 메시지 전송 (OFF 상태로 변경될 때만)
+      if (message.state === 1 && type === 1) {
+        try {
+          const device = await this.deviceService.findOne(deviceId);
+          if (device) {
+            const deviceType = await this.deviceService.getDeviceType(deviceId);
+            const typeString = deviceType === 'WASH' ? '세탁기' : '건조기';
+            
+            // 사용 시간 계산
+            const onTime = device.ON_time;
+            const offTime = moment().format();
+            const hourDiff = moment(offTime).diff(moment(onTime), 'hours');
+            const minuteDiff = moment(offTime).diff(moment(onTime), 'minutes') - hourDiff * 60;
+            const secondDiff = moment(offTime).diff(moment(onTime), 'seconds') - minuteDiff * 60 - hourDiff * 3600;
+
+            // FCM 메시지 전송
+            await this.pushService.sendPushNotification(
+              {
+                title: `${typeString} 알림`,
+                body: `${deviceId}번 ${typeString}의 동작이 완료되었습니다.\r\n동작시간 : ${hourDiff}시간 ${minuteDiff}분 ${secondDiff}초`,
+                deviceId: deviceId,
+                deviceType: deviceType,
+              },
+              message.state // expect_state
+            );
+
+            // 알림 신청 삭제
+            await this.pushService.deletePushAlert(deviceId, message.state);
+          }
+        } catch (error) {
+          this.logger.error(`[Device][FCM Error] Failed to send push notification: ${error.message}`);
+        }
+      }
 
       // 클라이언트에게 브로드캐스트
       this.clientGateway.broadcastToClients({

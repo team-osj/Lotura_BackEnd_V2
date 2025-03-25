@@ -27,29 +27,42 @@ export class PushService {
     return pushAlerts;
   }
 
-  async sendPushNotification(deviceId: string, message: string): Promise<void> {
-    try {
-      const pushAlerts = await this.pushAlertService.findByDeviceId(
-        parseInt(deviceId),
-      );
+  private async getTokensForDevice(deviceId: number, expectState: number): Promise<string[]> {
+    const pushAlerts = await this.pushAlertService.findByDeviceId(deviceId);
+    if (!pushAlerts || pushAlerts.length === 0) {
+      return [];
+    }
+    return pushAlerts
+      .filter(alert => alert.expect_status === expectState)
+      .map(alert => alert.token)
+      .filter(token => token !== null);
+  }
 
-      if (!pushAlerts || pushAlerts.length === 0 || !pushAlerts[0].token) {
-        this.logger.warn(
-          `Device ${deviceId} not found or no FCM token available`,
-        );
+  async sendPushNotification(
+    message: {
+      title: string;
+      body: string;
+      deviceId: number;
+      deviceType: string;
+    },
+    expectState: number,
+  ) {
+    try {
+      const tokens = await this.getTokensForDevice(
+        message.deviceId,
+        expectState,
+      );
+      if (tokens.length === 0) {
+        this.logger.log(`No tokens found for device ${message.deviceId}`);
         return;
       }
 
-      const payload = {
+      const messageData = {
         notification: {
-          title: 'Lotura',
-          body: message,
+          title: message.title,
+          body: message.body,
         },
-        data: {
-          device_id: deviceId,
-          timestamp: new Date().toISOString(),
-        },
-        token: pushAlerts[0].token,
+        tokens: tokens,
         android: {
           priority: 'high' as const,
         },
@@ -62,13 +75,27 @@ export class PushService {
         },
       };
 
-      const response = await this.firebaseService.getAdmin().messaging().send(payload);
+      const response = await this.firebaseService
+        .getAdmin()
+        .messaging()
+        .sendEachForMulticast(messageData);
+
+      if (response.failureCount > 0) {
+        const failedTokens = [];
+        response.responses.forEach((resp, idx) => {
+          if (!resp.success) {
+            failedTokens.push(tokens[idx]);
+          }
+        });
+        this.logger.error(`Failed tokens: ${failedTokens}`);
+      }
+
       this.logger.log(
-        `Successfully sent message to device ${deviceId}: ${response}`,
+        `Successfully sent message to device ${message.deviceId}: ${response}`,
       );
     } catch (error) {
       this.logger.error(
-        `Failed to send push notification to device ${deviceId}:`,
+        `Failed to send push notification to device ${message.deviceId}:`,
         error,
       );
       throw error;
@@ -99,7 +126,10 @@ export class PushService {
         },
       };
 
-      const response = await this.firebaseService.getAdmin().messaging().sendEachForMulticast(message);
+      const response = await this.firebaseService
+        .getAdmin()
+        .messaging()
+        .sendEachForMulticast(message);
       if (response.failureCount > 0) {
         const failedTokens = [];
         response.responses.forEach((resp, idx) => {
@@ -201,6 +231,18 @@ export class PushService {
           });
         }
       }
+    }
+  }
+
+  async deletePushAlert(deviceId: number, expectState: number) {
+    try {
+      await this.pushAlertRepository.delete({
+        device_id: deviceId,
+        expect_status: expectState,
+      });
+    } catch (error) {
+      this.logger.error(`Failed to delete push alert: ${error.message}`);
+      throw error;
     }
   }
 }
