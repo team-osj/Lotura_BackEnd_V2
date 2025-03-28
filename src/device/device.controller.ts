@@ -63,17 +63,17 @@ export class DeviceController {
     return this.deviceService.getAllDevices();
   }
 
-  @Get('device_list_boy1')
+  @Get('device_list_male_school')
   async getMensFirstDevices() {
     return this.deviceService.getMensFirstDevices();
   }
 
-  @Get('device_list_boy2')
+  @Get('device_list_male_domitory')
   async getMensSecondDevices() {
     return this.deviceService.getMensSecondDevices();
   }
 
-  @Get('device_list_girl')
+  @Get('device_list_female')
   async getWomensDevices() {
     return this.deviceService.getWomensDevices();
   }

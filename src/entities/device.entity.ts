@@ -43,7 +43,7 @@ export class Device {
   @Column({
     type: 'enum',
     enum: LaundryRoomType,
-    default: LaundryRoomType.MENS_FIRST,
+    default: LaundryRoomType.MALE_SCHOOL,
   })
   room_type: LaundryRoomType;
 

@@ -1,5 +1,5 @@
 export enum LaundryRoomType {
-  MENS_FIRST = 'mens_first',
-  MENS_SECOND = 'mens_second',
-  WOMENS = 'womens',
+  MALE_SCHOOL = 'male_school',
+  MALE_DORMITORY = 'male_dormitory',
+  FEMALE = 'female',
 }

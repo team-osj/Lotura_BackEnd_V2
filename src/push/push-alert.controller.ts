@@ -11,7 +11,11 @@ export class PushAlertController {
     @Body('deviceId') deviceId: string,
     @Body('expectState') expectState: number,
   ) {
-    return this.pushAlertService.requestPushAlert(token, parseInt(deviceId), expectState);
+    return this.pushAlertService.requestPushAlert(
+      token,
+      parseInt(deviceId),
+      expectState,
+    );
   }
 
   @Delete(':token/:deviceId')

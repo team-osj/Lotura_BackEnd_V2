@@ -70,21 +70,21 @@ export class DeviceService {
 
   async getMensFirstDevices() {
     return this.deviceRepository.find({
-      where: { room_type: LaundryRoomType.MENS_FIRST },
+      where: { room_type: LaundryRoomType.MALE_SCHOOL },
       select: ['id', 'view_id', 'state', 'device_type'],
     });
   }
 
   async getMensSecondDevices() {
     return this.deviceRepository.find({
-      where: { room_type: LaundryRoomType.MENS_SECOND },
+      where: { room_type: LaundryRoomType.MALE_DORMITORY },
       select: ['id', 'view_id', 'state', 'device_type'],
     });
   }
 
   async getWomensDevices() {
     return this.deviceRepository.find({
-      where: { room_type: LaundryRoomType.WOMENS },
+      where: { room_type: LaundryRoomType.FEMALE },
       select: ['id', 'view_id', 'state', 'device_type'],
     });
   }
