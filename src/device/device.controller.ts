@@ -58,22 +58,22 @@ export class DeviceController {
     return this.deviceService.remove(id);
   }
 
-  @Get('device_list')
+  @Get('list')
   async getDeviceList() {
     return this.deviceService.getAllDevices();
   }
 
-  @Get('device_list_male_school')
+  @Get('male_school')
   async getMensFirstDevices() {
     return this.deviceService.getMensFirstDevices();
   }
 
-  @Get('device_list_male_domitory')
+  @Get('male_domitory')
   async getMensSecondDevices() {
     return this.deviceService.getMensSecondDevices();
   }
 
-  @Get('device_list_female')
+  @Get('female')
   async getWomensDevices() {
     return this.deviceService.getWomensDevices();
   }
