@@ -143,11 +143,14 @@ export class DeviceWebsocketGateway
         return;
       }
 
-      // 디바이스 상태 업데이트
-      await this.deviceService.updateStatus(deviceId, message.state, type);
+      // boolean 상태를 숫자로 변환 (true -> 1, false -> 0)
+      const state = message.state === true ? 1 : 0;
+
+      // 디바이스 상태 업데이트 및 시간 기록
+      await this.deviceService.updateStatus(deviceId, state, type);
 
       // 클라이언트가 요청한 상태로 변경되었을 때만 FCM 메시지 전송
-      if (message.state === 1 && type === 1) {
+      if (state === 1 && type === 1) {
         try {
           const device = await this.deviceService.findOne(deviceId);
           if (device) {
@@ -173,11 +176,11 @@ export class DeviceWebsocketGateway
                 deviceId: deviceId,
                 deviceType: deviceType,
               },
-              message.state, // expect_state
+              state, // expect_state
             );
 
             // 알림 신청 삭제
-            await this.pushService.deletePushAlert(deviceId, message.state);
+            await this.pushService.deletePushAlert(deviceId, state);
           }
         } catch (error) {
           this.logger.error(
@@ -190,7 +193,7 @@ export class DeviceWebsocketGateway
       this.clientGateway.broadcastToClients({
         type: 'device_status_update',
         id: deviceId,
-        state: message.state,
+        state: state,
         device_type: await this.deviceService.getDeviceType(deviceId),
       });
     }

@@ -18,7 +18,6 @@ export class DeviceService {
     const device = await this.deviceRepository.findOne({
       where: { id: deviceId },
     });
-
     if (!device) {
       console.log(`Device not found: ${deviceId}`);
       return;
@@ -26,36 +25,23 @@ export class DeviceService {
     
     // 새로운 상태가 현재 상태와 다를 때만 prev_state 업데이트
     if (device.state !== state) {
+      // 상태 변경 시 시간 기록
+      if (state === 1) { // ON 상태
+        device.ON_time = new Date();
+        device.OFF_time = null;
+      } else if (state === 0) { // OFF 상태
+        device.OFF_time = new Date();
+      }
+
       await this.deviceRepository.update(deviceId, {
         state,
         prev_state: device.state, // 현재 상태를 prev_state에 저장
+        ON_time: device.ON_time,
+        OFF_time: device.OFF_time
       });
     } else {
       // 상태가 같다면 state만 업데이트(중복 업데이트 방지)
       await this.deviceRepository.update(deviceId, { state });
-    }
-
-    if (state === 0 && type === 1) {
-      // 켜기
-      await this.deviceRepository.update(deviceId, {
-        ON_time: moment().format('YYYY-MM-DD HH:mm:ss'),
-      });
-    } else if (state === 1 && type === 1) {
-      // 끄기
-      await this.deviceRepository.update(deviceId, {
-        OFF_time: moment().format('YYYY-MM-DD HH:mm:ss'),
-      });
-
-      const updatedDevice = await this.deviceRepository.findOne({
-        where: { id: deviceId },
-      });
-
-      if (updatedDevice.ON_time && updatedDevice.OFF_time) {
-        const duration = moment(updatedDevice.OFF_time).diff(
-          moment(updatedDevice.ON_time),
-        );
-        console.log(`[Device] Operation Duration: ${duration}ms`);
-      }
     }
   }
 
