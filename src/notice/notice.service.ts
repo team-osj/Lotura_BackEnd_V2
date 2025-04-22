@@ -45,7 +45,6 @@ export class NoticeService {
       const notice = this.noticeRepository.create({
         title: noticeData.title,
         contents: noticeData.contents,
-        date: noticeData.date,
       });
       await this.noticeRepository.save(notice);
       this.logger.log(`Notice created: ${noticeData.title}`);

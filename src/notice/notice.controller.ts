@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Delete,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { NoticeService } from './notice.service';
 import { Notice } from '../entities/notice.entity';
 
@@ -9,6 +17,11 @@ export class NoticeController {
   @Get()
   async findAll(): Promise<Notice[]> {
     return this.noticeService.findAll();
+  }
+
+  @Get(':id')
+  async findOne(@Param('id', ParseIntPipe) id: number): Promise<Notice> {
+    return this.noticeService.findOne(id);
   }
 
   @Post()
