@@ -83,7 +83,6 @@ export class DeviceController {
     await this.deviceService.updateStatus(
       updateStatusDto.device_id,
       updateStatusDto.state,
-      updateStatusDto.type,
     );
     return { success: true };
   }

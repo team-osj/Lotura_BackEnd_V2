@@ -16,6 +16,7 @@ import * as moment from 'moment';
 import { PushService } from '../push/push.service';
 import { DeviceLogService } from '../device/device-log.service';
 import { IncomingMessage } from 'http';
+import { Socket } from 'socket.io';
 
 interface ConnectedDevice {
   ws: ExtendedWebSocket;
@@ -76,8 +77,7 @@ export class DeviceWebsocketGateway
       }
 
       // 디바이스 상태를 온라인(1)으로 업데이트
-      await this.deviceService.updateStatus(Number(deviceId), 1, 0);
-      
+      await this.deviceService.updateStatus(Number(deviceId), 1);
       // 연결된 디바이스 목록에 추가
       this.connectedDevices.set(deviceId, {
         ws: client,
@@ -86,16 +86,20 @@ export class DeviceWebsocketGateway
         ch2: req.headers['ch2'] as string,
         isAlive: true,
         lastMessage: Date.now(),
-        status: 1
+        status: 1,
       });
 
-      this.logger.log(`[Device][Connected] [${Array.from(this.connectedDevices.keys()).join(',')}]`);
+      this.logger.log(
+        `[Device][Connected] [${Array.from(this.connectedDevices.keys()).join(
+          ',',
+        )}]`,
+      );
 
       // 클라이언트에게 디바이스 상태 변경 알림
       this.server.emit('deviceStatusChanged', {
         deviceId: Number(deviceId),
         status: 1,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       this.logger.error(`[Device][Connection] Error: ${error.message}`);
@@ -112,8 +116,8 @@ export class DeviceWebsocketGateway
         this.connectedDevices.delete(hwid);
 
         // 연결 해제 시 디바이스 상태 업데이트 (2: disconnected)
-        await this.deviceService.updateStatus(parseInt(device.ch1), 2, 0);
-        await this.deviceService.updateStatus(parseInt(device.ch2), 2, 0);
+        await this.deviceService.updateStatus(parseInt(device.ch1), 2);
+        await this.deviceService.updateStatus(parseInt(device.ch2), 2);
         break;
       }
     }
@@ -125,7 +129,9 @@ export class DeviceWebsocketGateway
 
     // 메시지 전체 내용 로깅 (디버깅용)
     this.logger.log(
-      `[Device][Message Received] HWID: ${hwid}, Message: ${JSON.stringify(message)}`,
+      `[Device][Message Received] HWID: ${hwid}, Message: ${JSON.stringify(
+        message,
+      )}`,
     );
 
     // 상태 업데이트 메시지 처리
@@ -134,7 +140,6 @@ export class DeviceWebsocketGateway
         `[Device][Update] ID: ${message.id} Status: ${message.state}`,
       );
 
-      const type = message.type !== undefined ? message.type : 1;
       const deviceId = parseInt(message.id, 10);
 
       // NaN 검사 추가
@@ -147,10 +152,10 @@ export class DeviceWebsocketGateway
       const state = message.state === true ? 1 : 0;
 
       // 디바이스 상태 업데이트 및 시간 기록
-      await this.deviceService.updateStatus(deviceId, state, type);
+      await this.deviceService.updateStatus(deviceId, state);
 
       // 클라이언트가 요청한 상태로 변경되었을 때만 FCM 메시지 전송
-      if (state === 1 && type === 1) {
+      if (state === 1) {
         try {
           const device = await this.deviceService.findOne(deviceId);
           if (device) {
@@ -285,28 +290,22 @@ export class DeviceWebsocketGateway
   }
 
   @SubscribeMessage('disconnect')
-  async handleDeviceDisconnect(@MessageBody() message: { id: string }) {
-    const deviceId = message.id;
-    if (!deviceId) {
-      this.logger.error(`[Device][Disconnect] Invalid device ID: ${message.id}`);
-      return;
-    }
-
-    this.logger.log(`[Device][Disconnect] Device ${deviceId} disconnected`);
-    this.connectedDevices.delete(deviceId);
-
-    try {
-      // 디바이스 상태를 오프라인(2)으로 업데이트
-      await this.deviceService.updateStatus(Number(deviceId), 2, 0);
-      
-      // 클라이언트에게 디바이스 상태 변경 알림
-      this.server.emit('deviceStatusChanged', {
-        deviceId: Number(deviceId),
-        status: 2,
-        timestamp: new Date().toISOString()
-      });
-    } catch (error) {
-      this.logger.error(`[Device][Disconnect] Error updating device status: ${error.message}`);
+  async handleDeviceDisconnect(client: Socket) {
+    const deviceId = this.connectedDevices.get(client.id);
+    if (deviceId) {
+      this.logger.log(`[Device][Disconnected] [${deviceId}]`);
+      this.connectedDevices.delete(client.id);
+      // 연결이 끊어졌을 때 상태를 2로 변경하지 않고 이전 상태 유지
+      const device = await this.deviceService.findOne(Number(deviceId));
+      if (device) {
+        // 클라이언트에게 연결 해제 알림만 전송
+        this.server.emit('deviceStatus', {
+          deviceId: Number(deviceId),
+          status: device.state,
+          isOnline: false,
+          timestamp: new Date().toISOString(),
+        });
+      }
     }
   }
 
@@ -326,29 +325,33 @@ export class DeviceWebsocketGateway
       ch2: '',
       isAlive: true,
       lastMessage: Date.now(),
-      status: 1
+      status: 1,
     });
 
     try {
       // 디바이스 상태를 온라인(1)으로 업데이트
-      await this.deviceService.updateStatus(Number(deviceId), 1, 0);
-      
+      await this.deviceService.updateStatus(Number(deviceId), 1);
       // 클라이언트에게 디바이스 상태 변경 알림
       this.server.emit('deviceStatusChanged', {
         deviceId: Number(deviceId),
         status: 1,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
       // FCM 푸시 알림 전송
-      await this.pushService.sendPushNotification({
-        title: '세탁기 재연결',
-        body: `세탁기 ${deviceId}번이 다시 연결되었습니다.`,
-        deviceId: Number(deviceId),
-        deviceType: 'WASH' // 기본값으로 세탁기 타입 설정
-      }, 1); // expectState: 1 (온라인 상태)
+      await this.pushService.sendPushNotification(
+        {
+          title: '세탁기 재연결',
+          body: `세탁기 ${deviceId}번이 다시 연결되었습니다.`,
+          deviceId: Number(deviceId),
+          deviceType: 'WASH', // 기본값으로 세탁기 타입 설정
+        },
+        1, // expectState: 1 (온라인 상태)
+      );
     } catch (error) {
-      this.logger.error(`[Device][Connect] Error updating device status: ${error.message}`);
+      this.logger.error(
+        `[Device][Connect] Error updating device status: ${error.message}`,
+      );
     }
   }
 

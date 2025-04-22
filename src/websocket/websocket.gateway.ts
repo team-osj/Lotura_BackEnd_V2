@@ -41,7 +41,7 @@ export class ClientGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('deviceStatus')
   async handleDeviceStatus(client: Socket, payload: any) {
     const { deviceId, status } = payload;
-    await this.deviceService.updateStatus(deviceId, status, 1);
+    await this.deviceService.updateStatus(deviceId, status);
     this.server.emit('deviceStatusUpdate', { deviceId, status });
   }
 }
@@ -89,7 +89,7 @@ export class DeviceGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('status')
   async handleStatus(client: Socket, payload: any) {
     const { deviceId, status } = payload;
-    await this.deviceService.updateStatus(deviceId, status, 1);
+    await this.deviceService.updateStatus(deviceId, status);
     this.server.emit('statusUpdate', { deviceId, status });
   }
 } 

@@ -1,5 +1,5 @@
 import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
-import { Client, GatewayIntentBits, TextChannel } from 'discord.js';
+import { Client, Intents, TextChannel } from 'discord.js';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
@@ -11,50 +11,16 @@ export class DiscordService implements OnModuleInit {
   constructor(private readonly configService: ConfigService) {
     this.client = new Client({
       intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.GuildMembers,
+        Intents.FLAGS.GUILDS,
+        Intents.FLAGS.GUILD_MESSAGES,
       ],
     });
 
-    this.client.once('ready', async () => {
-      this.logger.log('✅ Discord bot is online!');
-
-      // DISCORD_CHANNEL_ID 확인
-      const channelId = this.configService.get<string>('DISCORD_CHANNEL_ID');
-      if (!channelId) {
-        this.logger.error('❌ DISCORD_CHANNEL_ID is missing in .env!');
-        return;
-      }
-
-      try {
-        const channel = await this.client.channels.fetch(channelId);
-        if (!channel) {
-          this.logger.error(
-            `❌ Channel fetch returned null for ID: ${channelId}`,
-          );
-          return;
-        }
-
-        if (channel.isTextBased()) {
-          this.logger.log(`✅ Successfully fetched channel: ${channel.id}`);
-          this.channel = channel as TextChannel;
-          this.channel.send('Bot is online');
-        } else {
-          this.logger.error(
-            `❌ Fetched channel is not a text channel: ${channelId}`,
-          );
-        }
-      } catch (error) {
-        this.logger.error(
-          `❌ Failed to fetch channel (${channelId}): ${error.message}`,
-        );
-      }
+    this.client.on('ready', () => {
+      this.logger.log(`Discord bot logged in as ${this.client.user.tag}`);
     });
 
-    this.client.on('error', (error) => {
-      this.logger.error(`❌ Discord client error: ${error.message}`);
-    });
+    this.client.login(this.configService.get('DISCORD_TOKEN'));
   }
 
   async onModuleInit() {
@@ -73,12 +39,14 @@ export class DiscordService implements OnModuleInit {
     this.logger.log('✅ Successfully logged in to Discord.');
   }
 
-  sendMessage(message: string) {
-    if (this.channel) {
-      this.logger.log(`📩 Sending message to channel: ${this.channel.id}`);
-      this.channel.send(message);
-    } else {
-      this.logger.warn('⚠️ Channel is not initialized. Cannot send message.');
+  async sendMessage(channelId: string, message: string): Promise<void> {
+    try {
+      const channel = await this.client.channels.fetch(channelId);
+      if (channel instanceof TextChannel) {
+        await channel.send(message);
+      }
+    } catch (error) {
+      this.logger.error(`Failed to send Discord message: ${error.message}`);
     }
   }
 }

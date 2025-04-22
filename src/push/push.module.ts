@@ -8,10 +8,7 @@ import { PushAlertController } from './push-alert.controller';
 import { FirebaseModule } from '../firebase/firebase.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([PushAlert, Device]),
-    FirebaseModule,
-  ],
+  imports: [TypeOrmModule.forFeature([PushAlert, Device]), FirebaseModule],
   controllers: [PushAlertController],
   providers: [PushAlertService, PushService],
   exports: [PushService],

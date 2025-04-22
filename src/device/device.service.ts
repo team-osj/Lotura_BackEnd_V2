@@ -12,37 +12,33 @@ export class DeviceService {
     private readonly deviceRepository: Repository<Device>,
   ) {}
 
-  async updateStatus(deviceId: number, state: number, type: number): Promise<void> {
-    if (!deviceId) return;
-
+  async updateStatus(
+    deviceId: number,
+    state: number,
+  ): Promise<void> {
     const device = await this.deviceRepository.findOne({
       where: { id: deviceId },
     });
+
     if (!device) {
       console.log(`Device not found: ${deviceId}`);
       return;
     }
-    
-    // 새로운 상태가 현재 상태와 다를 때만 prev_state 업데이트
+
+    // 상태가 변경될 때만 ON_time과 OFF_time 업데이트
     if (device.state !== state) {
-      // 상태 변경 시 시간 기록
-      if (state === 1) { // ON 상태
+      if (state === 1) {
         device.ON_time = new Date();
-        device.OFF_time = null;
-      } else if (state === 0) { // OFF 상태
+      } else if (state === 0) {
         device.OFF_time = new Date();
       }
-
-      await this.deviceRepository.update(deviceId, {
-        state,
-        prev_state: device.state, // 현재 상태를 prev_state에 저장
-        ON_time: device.ON_time,
-        OFF_time: device.OFF_time
-      });
-    } else {
-      // 상태가 같다면 state만 업데이트(중복 업데이트 방지)
-      await this.deviceRepository.update(deviceId, { state });
+      device.prev_state = device.state;
     }
+
+    // 상태 업데이트
+    device.state = state;
+
+    await this.deviceRepository.save(device);
   }
 
   async getDeviceList(): Promise<Device[]> {
