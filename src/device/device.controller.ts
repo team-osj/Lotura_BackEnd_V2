@@ -30,6 +30,36 @@ export class DeviceController {
     return this.deviceWebsocketGateway.getAllConnectedDevices();
   }
 
+  @Get('list')
+  async getDeviceList() {
+    return this.deviceService.getAllDevices();
+  }
+
+  @Get('male_school')
+  async getMensFirstDevices() {
+    return this.deviceService.getMensFirstDevices();
+  }
+
+  @Get('male_domitory')
+  async getMensSecondDevices() {
+    return this.deviceService.getMensSecondDevices();
+  }
+
+  @Get('female')
+  async getWomensDevices() {
+    return this.deviceService.getWomensDevices();
+  }
+
+  @Get('get_log')
+  async getLog(@Query('no', ParseIntPipe) no: number) {
+    return this.deviceLogService.getLog(no);
+  }
+
+  @Get('logs')
+  async getLogs() {
+    return this.deviceLogService.findAll();
+  }
+
   @Get()
   async findAll(): Promise<Device[]> {
     return this.deviceService.findAll();
@@ -58,26 +88,6 @@ export class DeviceController {
     return this.deviceService.remove(id);
   }
 
-  @Get('list')
-  async getDeviceList() {
-    return this.deviceService.getAllDevices();
-  }
-
-  @Get('male_school')
-  async getMensFirstDevices() {
-    return this.deviceService.getMensFirstDevices();
-  }
-
-  @Get('male_domitory')
-  async getMensSecondDevices() {
-    return this.deviceService.getMensSecondDevices();
-  }
-
-  @Get('female')
-  async getWomensDevices() {
-    return this.deviceService.getWomensDevices();
-  }
-
   @Patch('status')
   async updateStatus(@Body() updateStatusDto: UpdateStatusDto) {
     await this.deviceService.updateStatus(
@@ -85,29 +95,5 @@ export class DeviceController {
       updateStatusDto.state,
     );
     return { success: true };
-  }
-
-  @Get('get_log')
-  async getLog(@Query('no', ParseIntPipe) no: number) {
-    return this.deviceLogService.getLog(no);
-  }
-
-  @Get('logs')
-  async getLogs() {
-    return this.deviceLogService.findAll();
-  }
-
-  @Get('room/:roomType')
-  async getDevicesByRoomType(@Param('roomType') roomType: string) {
-    switch (roomType) {
-      case 'mens_first':
-        return this.deviceService.getMensFirstDevices();
-      case 'mens_second':
-        return this.deviceService.getMensSecondDevices();
-      case 'womens':
-        return this.deviceService.getWomensDevices();
-      default:
-        throw new NotFoundException(`Room type ${roomType} not found`);
-    }
   }
 }
