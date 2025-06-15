@@ -76,31 +76,47 @@ export class DeviceWebsocketGateway
         return;
       }
 
-      // 디바이스 상태를 온라인(1)으로 업데이트
-      await this.deviceService.updateStatus(Number(deviceId), 1);
+      const ch1 = req.headers['ch1'] as string;
+      const ch2 = req.headers['ch2'] as string;
+
       // 연결된 디바이스 목록에 추가
       this.connectedDevices.set(deviceId, {
         ws: client,
         hwid: deviceId,
-        ch1: req.headers['ch1'] as string,
-        ch2: req.headers['ch2'] as string,
+        ch1: ch1,
+        ch2: ch2,
         isAlive: true,
         lastMessage: Date.now(),
         status: 1,
       });
 
+      // 하드웨어 연결 시 해당 하드웨어의 모든 채널 디바이스를 사용 가능 상태로 설정
+      if (ch1) {
+        await this.deviceService.updateConnectionStatus(parseInt(ch1), 1); // 연결됨, 사용 가능
+      }
+      if (ch2) {
+        await this.deviceService.updateConnectionStatus(parseInt(ch2), 1); // 연결됨, 사용 가능
+      }
+
       this.logger.log(
-        `[Device][Connected] [${Array.from(this.connectedDevices.keys()).join(
-          ',',
-        )}]`,
+        `[Device][Connected] HWID: ${deviceId}, CH1: ${ch1}, CH2: ${ch2}`,
       );
 
       // 클라이언트에게 디바이스 상태 변경 알림
-      this.server.emit('deviceStatusChanged', {
-        deviceId: Number(deviceId),
-        status: 1,
-        timestamp: new Date().toISOString(),
-      });
+      if (ch1) {
+        this.server.emit('deviceStatusChanged', {
+          deviceId: Number(ch1),
+          status: 1,
+          timestamp: new Date().toISOString(),
+        });
+      }
+      if (ch2) {
+        this.server.emit('deviceStatusChanged', {
+          deviceId: Number(ch2),
+          status: 1,
+          timestamp: new Date().toISOString(),
+        });
+      }
     } catch (error) {
       this.logger.error(`[Device][Connection] Error: ${error.message}`);
       client.close(1011, 'Internal server error');
@@ -111,13 +127,39 @@ export class DeviceWebsocketGateway
     for (const [hwid, device] of this.connectedDevices.entries()) {
       if (device.ws === client) {
         this.logger.log(
-          `[Device][Disconnected] [${device.hwid},${device.ch1},${device.ch2}]`,
+          `[Device][Disconnected] HWID: ${device.hwid}, CH1: ${device.ch1}, CH2: ${device.ch2}`,
         );
         this.connectedDevices.delete(hwid);
 
-        // 연결 해제 시 디바이스 상태 업데이트 (2: disconnected)
-        await this.deviceService.updateStatus(parseInt(device.ch1), 2);
-        await this.deviceService.updateStatus(parseInt(device.ch2), 2);
+        // 하드웨어 연결 해제 시 해당 하드웨어의 모든 채널 디바이스를 연결 끊김 상태로 설정
+        if (device.ch1) {
+          await this.deviceService.updateConnectionStatus(
+            parseInt(device.ch1),
+            2,
+          );
+        }
+        if (device.ch2) {
+          await this.deviceService.updateConnectionStatus(
+            parseInt(device.ch2),
+            2,
+          );
+        }
+
+        // 클라이언트에게 연결 해제 알림
+        if (device.ch1) {
+          this.server.emit('deviceStatusChanged', {
+            deviceId: Number(device.ch1),
+            status: 2,
+            timestamp: new Date().toISOString(),
+          });
+        }
+        if (device.ch2) {
+          this.server.emit('deviceStatusChanged', {
+            deviceId: Number(device.ch2),
+            status: 2,
+            timestamp: new Date().toISOString(),
+          });
+        }
         break;
       }
     }
@@ -148,8 +190,23 @@ export class DeviceWebsocketGateway
         return;
       }
 
-      // boolean 상태를 숫자로 변환 (true -> 1, false -> 0)
-      const state = message.state === true ? 1 : 0;
+      // 현재 디바이스의 연결 상태 확인
+      const currentDevice = await this.deviceService.findOne(deviceId);
+      if (!currentDevice) {
+        this.logger.error(`[Device][Error] Device not found: ${deviceId}`);
+        return;
+      }
+
+      // 연결이 끊어진 상태(2)에서는 상태 업데이트 무시
+      if (currentDevice.state === 2) {
+        this.logger.warn(
+          `[Device][Warning] Device ${deviceId} is disconnected, ignoring status update`,
+        );
+        return;
+      }
+
+      // boolean 상태를 숫자로 변환 (true -> 0: 작동중, false -> 1: 사용 가능)
+      const state = message.state === true ? 0 : 1;
 
       // 디바이스 상태 업데이트 및 시간 기록
       await this.deviceService.updateStatus(deviceId, state);

@@ -41,6 +41,32 @@ export class DeviceService {
     await this.deviceRepository.save(device);
   }
 
+  async updateConnectionStatus(
+    deviceId: number,
+    connectionStatus: number,
+  ): Promise<void> {
+    const device = await this.deviceRepository.findOne({
+      where: { id: deviceId },
+    });
+
+    if (!device) {
+      console.log(`Device not found: ${deviceId}`);
+      return;
+    }
+
+    // 연결 상태만 업데이트 (2: 연결 끊김, 1: 연결됨/사용 가능)
+    // 작동 상태(0: 작동중)는 변경하지 않음
+    if (connectionStatus === 2) {
+      // 연결 끊김 상태로 설정
+      device.state = 2;
+    } else if (connectionStatus === 1 && device.state === 2) {
+      // 연결 끊김 상태에서 연결됨으로 변경 시, 사용 가능 상태로 설정
+      device.state = 1;
+    }
+
+    await this.deviceRepository.save(device);
+  }
+
   async getDeviceList(): Promise<Device[]> {
     return this.deviceRepository.find({
       select: ['id', 'state', 'device_type'],
