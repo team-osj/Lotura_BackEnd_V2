@@ -54,18 +54,21 @@ export class DeviceWebsocketGateway
   }
 
   private setupHeartbeat() {
-    this.heartbeatInterval = setInterval(() => {
-      this.connectedDevices.forEach((device, hwid) => {
-        if (!device.ws.isAlive) {
-          this.logger.log(`Heartbeat failed for device ${hwid}`);
-          device.ws.terminate();
-          this.connectedDevices.delete(hwid);
-          return;
-        }
-        device.ws.isAlive = false;
-        device.ws.ping();
-      });
-    }, 15000);
+    // 하트비트 비활성화 (개발/테스트 환경용)
+    // this.heartbeatInterval = setInterval(() => {
+    //   this.connectedDevices.forEach((device, hwid) => {
+    //     if (!device.ws.isAlive) {
+    //       this.logger.log(`Heartbeat failed for device ${hwid}`);
+    //       device.ws.terminate();
+    //       this.connectedDevices.delete(hwid);
+    //       return;
+    //     }
+    //     device.ws.isAlive = false;
+    //     device.ws.ping();
+    //   });
+    // }, 300000); // 5분으로 변경 (60초 → 300초)
+    
+    this.logger.log('Heartbeat disabled for development/testing');
   }
 
   async handleConnection(client: ExtendedWebSocket, req: IncomingMessage) {
@@ -88,6 +91,32 @@ export class DeviceWebsocketGateway
         isAlive: true,
         lastMessage: Date.now(),
         status: 1,
+      });
+
+      // pong 이벤트 핸들러 추가 (하트비트 응답)
+      // client.on('pong', () => {
+      //   const device = this.connectedDevices.get(deviceId);
+      //   if (device) {
+      //     device.isAlive = true;
+      //     device.lastMessage = Date.now();
+      //   }
+      // });
+
+      // 메시지 이벤트 핸들러 추가
+      client.on('message', (data: string) => {
+        try {
+          const message = JSON.parse(data);
+          this.handleDeviceMessage(deviceId, message);
+
+          // 메시지 수신 시 isAlive 업데이트
+          const device = this.connectedDevices.get(deviceId);
+          if (device) {
+            device.isAlive = true;
+            device.lastMessage = Date.now();
+          }
+        } catch (error) {
+          this.logger.error(`[Device][Message Parse Error] ${error.message}`);
+        }
       });
 
       // 하드웨어 연결 시 해당 하드웨어의 모든 채널 디바이스를 사용 가능 상태로 설정
@@ -206,7 +235,25 @@ export class DeviceWebsocketGateway
       }
 
       // boolean 상태를 숫자로 변환 (true -> 0: 작동중, false -> 1: 사용 가능)
-      const state = message.state === true ? 0 : 1;
+      // 숫자도 지원: 0 -> 0(작동중), 1 -> 1(사용가능)
+      let state: number;
+      
+      // 디버깅 로그 추가
+      this.logger.log(`[Device][Debug] Original state: ${message.state}, Type: ${typeof message.state}`);
+      
+      if (typeof message.state === 'boolean') {
+        state = message.state === true ? 0 : 1;
+        this.logger.log(`[Device][Debug] Boolean conversion: ${message.state} -> ${state}`);
+      } else if (typeof message.state === 'number') {
+        state = message.state; // 0 또는 1 그대로 사용
+        this.logger.log(`[Device][Debug] Number conversion: ${message.state} -> ${state}`);
+      } else {
+        // 기본값: false -> 1(사용가능)
+        state = 1;
+        this.logger.log(`[Device][Debug] Default conversion: ${message.state} -> ${state}`);
+      }
+      
+      this.logger.log(`[Device][Debug] Final state value: ${state}`);
 
       // 디바이스 상태 업데이트 및 시간 기록
       await this.deviceService.updateStatus(deviceId, state);
