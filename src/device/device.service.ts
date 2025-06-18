@@ -99,7 +99,7 @@ export class DeviceService {
 
   async getAllDevices() {
     return this.deviceRepository.find({
-      select: ['id', 'state', 'device_type'],
+      select: ['id', 'view_id', 'state', 'device_type', 'room_type'],
       order: {
         id: 'ASC',
       },
