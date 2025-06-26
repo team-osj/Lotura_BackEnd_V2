@@ -1,7 +1,10 @@
-import { Entity, Column } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity('app_version')
 export class AppVersion {
+  @PrimaryGeneratedColumn()
+  id: number;
+
   @Column({ length: 200 })
   os_system: string;
 

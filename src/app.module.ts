@@ -8,10 +8,12 @@ import { DeviceModule } from './device/device.module';
 import { PushModule } from './push/push.module';
 import { WebsocketModule } from './websocket/websocket.module';
 import { NoticeModule } from './notice/notice.module';
+import { AppVersionModule } from './app-version/app-version.module';
 import { Device } from './entities/device.entity';
 import { DeviceLog } from './entities/device-log.entity';
 import { PushAlert } from './entities/push-alert.entity';
 import { Notice } from './entities/notice.entity';
+import { AppVersion } from './entities/app-version.entity';
 
 @Module({
   imports: [
@@ -27,7 +29,7 @@ import { Notice } from './entities/notice.entity';
         username: configService.get('MYSQL_USER'),
         password: configService.get('MYSQL_PASSWORD'),
         database: configService.get('MYSQL_DATABASE'),
-        entities: [Device, DeviceLog, PushAlert, Notice],
+        entities: [Device, DeviceLog, PushAlert, Notice, AppVersion],
         synchronize: true,
       }),
       inject: [ConfigService],
@@ -37,6 +39,7 @@ import { Notice } from './entities/notice.entity';
     PushModule,
     WebsocketModule,
     NoticeModule,
+    AppVersionModule,
   ],
   controllers: [AppController],
   providers: [AppService],
