@@ -67,7 +67,7 @@ export class DeviceWebsocketGateway
     //     device.ws.ping();
     //   });
     // }, 300000); // 5분으로 변경 (60초 → 300초)
-    
+
     this.logger.log('Heartbeat disabled for development/testing');
   }
 
@@ -237,22 +237,32 @@ export class DeviceWebsocketGateway
       // boolean 상태를 숫자로 변환 (true -> 0: 작동중, false -> 1: 사용 가능)
       // 숫자도 지원: 0 -> 0(작동중), 1 -> 1(사용가능)
       let state: number;
-      
+
       // 디버깅 로그 추가
-      this.logger.log(`[Device][Debug] Original state: ${message.state}, Type: ${typeof message.state}`);
-      
+      this.logger.log(
+        `[Device][Debug] Original state: ${
+          message.state
+        }, Type: ${typeof message.state}`,
+      );
+
       if (typeof message.state === 'boolean') {
         state = message.state === true ? 0 : 1;
-        this.logger.log(`[Device][Debug] Boolean conversion: ${message.state} -> ${state}`);
+        this.logger.log(
+          `[Device][Debug] Boolean conversion: ${message.state} -> ${state}`,
+        );
       } else if (typeof message.state === 'number') {
         state = message.state; // 0 또는 1 그대로 사용
-        this.logger.log(`[Device][Debug] Number conversion: ${message.state} -> ${state}`);
+        this.logger.log(
+          `[Device][Debug] Number conversion: ${message.state} -> ${state}`,
+        );
       } else {
         // 기본값: false -> 1(사용가능)
         state = 1;
-        this.logger.log(`[Device][Debug] Default conversion: ${message.state} -> ${state}`);
+        this.logger.log(
+          `[Device][Debug] Default conversion: ${message.state} -> ${state}`,
+        );
       }
-      
+
       this.logger.log(`[Device][Debug] Final state value: ${state}`);
 
       // 디바이스 상태 업데이트 및 시간 기록
@@ -399,13 +409,17 @@ export class DeviceWebsocketGateway
     if (deviceId) {
       this.logger.log(`[Device][Disconnected] [${deviceId}]`);
       this.connectedDevices.delete(client.id);
-      // 연결이 끊어졌을 때 상태를 2로 변경하지 않고 이전 상태 유지
+      // 연결이 끊어졌을 때 prev_state에 기존 state 저장, state를 2로 변경
       const device = await this.deviceService.findOne(Number(deviceId));
       if (device) {
+        await this.deviceService.update(Number(deviceId), {
+          prev_state: device.state,
+        }); // prev_state 저장
+        await this.deviceService.updateStatus(Number(deviceId), 2); // state를 2로 변경
         // 클라이언트에게 연결 해제 알림만 전송
         this.server.emit('deviceStatus', {
           deviceId: Number(deviceId),
-          status: device.state,
+          status: 2,
           isOnline: false,
           timestamp: new Date().toISOString(),
         });
@@ -433,25 +447,30 @@ export class DeviceWebsocketGateway
     });
 
     try {
-      // 디바이스 상태를 온라인(1)으로 업데이트
-      await this.deviceService.updateStatus(Number(deviceId), 1);
-      // 클라이언트에게 디바이스 상태 변경 알림
-      this.server.emit('deviceStatusChanged', {
-        deviceId: Number(deviceId),
-        status: 1,
-        timestamp: new Date().toISOString(),
-      });
-
-      // FCM 푸시 알림 전송
-      await this.pushService.sendPushNotification(
-        {
-          title: '세탁기 재연결',
-          body: `세탁기 ${deviceId}번이 다시 연결되었습니다.`,
+      const device = await this.deviceService.findOne(Number(deviceId));
+      if (device) {
+        // state가 2라면 prev_state로 복원, 아니면 기존 state 사용
+        const newState = device.state === 2 ? device.prev_state : device.state;
+        await this.deviceService.updateStatus(Number(deviceId), newState);
+        // 클라이언트에게 디바이스 상태 변경 알림
+        this.server.emit('deviceStatusChanged', {
           deviceId: Number(deviceId),
-          deviceType: 'WASH', // 기본값으로 세탁기 타입 설정
-        },
-        1, // expectState: 1 (온라인 상태)
-      );
+          status: newState,
+          timestamp: new Date().toISOString(),
+        });
+        // FCM 푸시 알림도 상태가 1(사용가능)로 바뀔 때만 전송
+        if (newState === 1) {
+          await this.pushService.sendPushNotification(
+            {
+              title: '세탁기 재연결',
+              body: `세탁기 ${deviceId}번이 다시 연결되었습니다.`,
+              deviceId: Number(deviceId),
+              deviceType: 'WASH', // 기본값으로 세탁기 타입 설정
+            },
+            1, // expectState: 1 (온라인 상태)
+          );
+        }
+      }
     } catch (error) {
       this.logger.error(
         `[Device][Connect] Error updating device status: ${error.message}`,
