@@ -55,30 +55,6 @@ export class ClientWebsocketGateway
       client.isAlive = true;
     });
 
-    // 클라이언트 연결 시 모든 디바이스 정보를 자동으로 전송
-    /* try {
-      const allDevices = await this.deviceService.getAllDevices();
-      const deviceStatusMessage = {
-        type: 'initial_device_status',
-        devices: allDevices.map((device) => ({
-          id: device.id,
-          state: device.state,
-          device_type: device.device_type,
-          view_id: device.view_id,
-          room_type: device.room_type,
-        })),
-      };
-
-      client.send(JSON.stringify(deviceStatusMessage));
-      this.logger.log(
-        `Sent initial device status to client ${clientId}: ${allDevices.length} devices`,
-      );
-    } catch (error) {
-      this.logger.error(
-        `Failed to send initial device status to client ${clientId}: ${error.message}`,
-      );
-    } */
-
     client.on('message', async (data: string) => {
       try {
         // 필요에 따라 클라이언트 메시지 처리 로직 추가
