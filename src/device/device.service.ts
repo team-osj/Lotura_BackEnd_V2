@@ -12,10 +12,7 @@ export class DeviceService {
     private readonly deviceRepository: Repository<Device>,
   ) {}
 
-  async updateStatus(
-    deviceId: number,
-    state: number,
-  ): Promise<void> {
+  async updateStatus(deviceId: number, state: number): Promise<void> {
     const device = await this.deviceRepository.findOne({
       where: { id: deviceId },
     });
@@ -41,6 +38,25 @@ export class DeviceService {
     await this.deviceRepository.save(device);
   }
 
+  async restoreConnectionStatus(
+    deviceId: number,
+    state: number,
+  ): Promise<void> {
+    const device = await this.deviceRepository.findOne({
+      where: { id: deviceId },
+    });
+
+    if (!device) {
+      console.log(`Device not found: ${deviceId}`);
+      return;
+    }
+
+    // 연결 복원 시에는 prev_state를 변경하지 않고 상태만 복원
+    device.state = state;
+
+    await this.deviceRepository.save(device);
+  }
+
   async updateConnectionStatus(
     deviceId: number,
     connectionStatus: number,
@@ -54,14 +70,13 @@ export class DeviceService {
       return;
     }
 
-    // 연결 상태만 업데이트 (2: 연결 끊김, 1: 연결됨/사용 가능)
-    // 작동 상태(0: 작동중)는 변경하지 않음
+    // 연결 상태만 업데이트 (2: 연결 끊김, 1: 연결됨)
     if (connectionStatus === 2) {
       // 연결 끊김 상태로 설정
       device.state = 2;
     } else if (connectionStatus === 1 && device.state === 2) {
-      // 연결 끊김 상태에서 연결됨으로 변경 시, 사용 가능 상태로 설정
-      device.state = 1;
+      // 연결 끊김 상태에서 연결됨으로 변경 시, prev_state로 복원
+      device.state = device.prev_state;
     }
 
     await this.deviceRepository.save(device);
