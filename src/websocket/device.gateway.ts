@@ -268,6 +268,11 @@ export class DeviceWebsocketGateway
       // 디바이스 상태 업데이트 및 시간 기록
       await this.deviceService.updateStatus(deviceId, state);
 
+      // 상태가 변경되었으므로 prev_state에 현재 상태 저장
+      await this.deviceService.update(deviceId, {
+        prev_state: state,
+      });
+
       // 클라이언트가 요청한 상태로 변경되었을 때만 FCM 메시지 전송
       if (state === 1) {
         try {
@@ -409,12 +414,9 @@ export class DeviceWebsocketGateway
     if (deviceId) {
       this.logger.log(`[Device][Disconnected] [${deviceId}]`);
       this.connectedDevices.delete(client.id);
-      // 연결이 끊어졌을 때 prev_state에 기존 state 저장, state를 2로 변경
+      // 연결이 끊어졌을 때 state를 2로 변경 (prev_state는 이미 저장되어 있음)
       const device = await this.deviceService.findOne(Number(deviceId));
       if (device) {
-        await this.deviceService.update(Number(deviceId), {
-          prev_state: device.state,
-        }); // prev_state 저장
         await this.deviceService.updateStatus(Number(deviceId), 2); // state를 2로 변경
         // 클라이언트에게 연결 해제 알림만 전송
         this.server.emit('deviceStatus', {
